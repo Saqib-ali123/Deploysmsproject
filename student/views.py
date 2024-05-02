@@ -1,7 +1,8 @@
 from rest_framework.decorators import api_view
+from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
-from .models import GuardianType
-from .serializers import GuardianTypeSerializer
+from .models import GuardianType, Student
+from .serializers import GuardianTypeSerializer, StudentSerializer
 from rest_framework import status
 
 
@@ -110,3 +111,8 @@ def GuardianTypeView(request, pk=None):
                 {"message": "Something went wrong"},
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class StudentView(ModelViewSet):
+    queryset = Student.objects.all()
+    serializer_class = StudentSerializer
