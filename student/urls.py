@@ -9,18 +9,13 @@ urlpatterns = [
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from student.views import StudentView
 
-from director.views import AddressView,PeriodView,CountryView,StateView,CityView
 from django.contrib import admin
 
 # Define the router for the StudentView
 router = DefaultRouter()
-
-router.register(r'country', CountryView)
-router.register(r'states', StateView)
-router.register(r'city', CityView)
-router.register(r'addresses', AddressView)
-router.register(r'Period', PeriodView)
+router.register(r'students', StudentView)
 
 # Combine the router's URL patterns with the admin URL pattern
 urlpatterns = [
