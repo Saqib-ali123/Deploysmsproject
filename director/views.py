@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from .models import YearLevel
 from .serializers import *
 from rest_framework import status
+from rest_framework import viewsets
 
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -452,3 +453,41 @@ def RoleView(request, pk=None):
             return Response(
                 {"message": "Role not Found"}, status=status.HTTP_404_NOT_FOUND
             )
+
+
+
+# ==============Country================
+class CountryView(viewsets.ModelViewSet):
+    queryset = Country.objects.all()
+    serializer_class = CountrySerializer
+
+
+
+# ===============State===================
+class StateView(viewsets.ModelViewSet):
+    queryset = State.objects.all()
+    serializer_class = StateSerializer
+
+
+
+
+# ================City===============
+class CityView(viewsets.ModelViewSet):
+    queryset = City.objects.all()
+    serializer_class = CitySerializer
+
+
+
+
+# ===========Address==========
+class AddressView(viewsets.ModelViewSet):
+    queryset = Address.objects.all()
+    serializer_class = AddressSerializer
+
+
+
+# ===========Period============
+
+class PeriodView(viewsets.ModelViewSet):
+    queryset =Period.objects.all()
+    serializer_class = PeriodSerializer
