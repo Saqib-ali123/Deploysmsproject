@@ -83,14 +83,14 @@ class AddressSerializer(serializers.ModelSerializer):
         return representation
 
 # ======================PeriodSerializer==================================
-class School_YearSerializer(serializers.ModelSerializer):
+class SchoolYearSerializer(serializers.ModelSerializer):
     class Meta:
-        model = School_Year
+        model = SchoolYear
         fields = '__all__'
         # fields = ['year_name']
 
 class PeriodSerializer(serializers.ModelSerializer):
-    year = serializers.PrimaryKeyRelatedField(queryset=School_Year.objects.all())
+    year = serializers.PrimaryKeyRelatedField(queryset=SchoolYear.objects.all())
 
     class Meta:
         model = Period

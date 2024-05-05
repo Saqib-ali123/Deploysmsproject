@@ -11,8 +11,8 @@ def YearLevelView(request, id=None):
     if request.method == "GET":
         if id is not None:
             try:
-                year_level = YearLevel.objects.get(pk=id)
-                serialize = YearLevelSerializer(year_level, many=False)
+                YearLevel = YearLevel.objects.get(pk=id)
+                serialize = YearLevelSerializer(YearLevel, many=False)
                 return Response(serialize.data, status=status.HTTP_200_OK)
             except YearLevel.DoesNotExist:
                 return Response(
@@ -25,8 +25,8 @@ def YearLevelView(request, id=None):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
         else:
-            year_levels = YearLevel.objects.all()
-            serialized = YearLevelSerializer(year_levels, many=True)
+            YearLevels = YearLevel.objects.all()
+            serialized = YearLevelSerializer(YearLevels, many=True)
             return Response(serialized.data, status=status.HTTP_200_OK)
 
     elif request.method == "POST":
@@ -132,12 +132,12 @@ def SchoolYearView(request, pk=None):
     elif request.method == "PUT":
         try:
             Store = SchoolYear.objects.get(id=pk)
-            Updated_School_year = SchoolYearSerializer(
+            Updated_SchoolYear = SchoolYearSerializer(
                 instance=Store, data=request.data
             )
 
-            if Updated_School_year.is_valid():
-                Updated_School_year.save()
+            if Updated_SchoolYear.is_valid():
+                Updated_SchoolYear.save()
                 return Response(
                     {"message": "Update School Year Successfully"},
                     status=status.HTTP_201_CREATED,
