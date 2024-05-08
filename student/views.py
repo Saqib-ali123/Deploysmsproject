@@ -1,6 +1,8 @@
 from rest_framework.decorators import api_view
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
+
+from director.models import Role
 from .models import GuardianType, Student
 from .serializers import GuardianTypeSerializer, StudentSerializer
 from rest_framework import status
@@ -116,3 +118,29 @@ def GuardianTypeView(request, pk=None):
 class StudentView(ModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user_instance = instance.user
+        student_role = Role.objects.get(name='student')
+
+        if user_instance.role.filter(name='student').exists():
+            user_instance.role.remove(student_role)
+            other_roles = user_instance.role.exclude(name='student')
+            if other_roles.exists():
+                self.perform_destroy(instance)
+                return Response({"success": "Student profile deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+            else:
+                user_instance.delete()
+                return Response({"success": "Student profile and related user deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        else:
+            self.perform_destroy(instance)
+            return Response({"success": "Student profile deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+
+
+
+
+
