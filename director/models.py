@@ -229,3 +229,108 @@ class ClassPeriod(models.Model):
         verbose_name = "ClassPeriod"
         verbose_name_plural = "ClassPeriods"
         db_table = "ClassPeriod"
+
+
+
+
+
+# =========my================
+
+# Create your models here.
+
+
+# class Role(models.Model):
+#     name = models.CharField(max_length=100)
+
+#     def __str__(self):
+#         return self.name
+
+
+# class Country(models.Model):
+#     name = models.CharField(max_length=120)
+
+#     def __str__(self):
+#         return self.name
+
+
+# class State(models.Model):
+#     name = models.CharField(max_length=120)
+#     country = models.ForeignKey(Country, on_delete=models.DO_NOTHING)
+
+#     def __str__(self):
+#         return self.name
+
+
+# class City(models.Model):
+#     name = models.CharField(max_length=120)
+#     state = models.ForeignKey(State, on_delete=models.DO_NOTHING)
+
+#     def __str__(self):
+#         return self.name
+
+
+class Address(models.Model):
+    user = models.ForeignKey(User, on_delete=models.DO_NOTHING)
+    house_no = models.IntegerField()
+    area_code = models.IntegerField()
+    country = models.ForeignKey(Country, on_delete=models.DO_NOTHING)
+    state = models.ForeignKey(State, on_delete=models.DO_NOTHING)
+    city = models.ForeignKey(City, on_delete=models.DO_NOTHING)
+    address_line = models.CharField(max_length=250)
+
+
+# class Director(models.Model):
+#     user = models.OneToOneField(User, on_delete=models.DO_NOTHING)
+#     phone_number = models.CharField(max_length=250, null=False)
+#     gender = models.CharField(max_length=50)
+
+
+# class BankingDetails(models.Model):
+#     account_no = models.BigIntegerField(primary_key=True, unique=True)
+#     ifsc_code = models.BigIntegerField()
+#     holder_name = models.CharField(max_length=255)
+#     user = models.OneToOneField(User, on_delete=models.DO_NOTHING)
+
+
+# class SchoolYear(models.Model):
+#     year_name = models.CharField(max_length=250)
+#     start_date = models.DateField(null=False)
+#     end_date = models.DateField(null=False)
+
+
+# class YearLevel(models.Model):
+#     level_name = models.CharField(max_length=250)
+#     level_order = models.IntegerField()
+
+
+# class Term(models.Model):
+#     year = models.ForeignKey(SchoolYear, on_delete=models.DO_NOTHING)
+#     term_number = models.IntegerField()
+#     start_date = models.DateField()
+#     end_date = models.DateField()
+
+
+# class Period(models.Model):
+#     year = models.ForeignKey(SchoolYear, on_delete=models.DO_NOTHING)
+#     name = models.CharField(max_length=250)
+#     start_period_time = models.TimeField()
+#     end_period_time = models.TimeField()
+
+
+# class Department(models.Model):
+#     department_name = models.CharField(max_length=250, null=False)
+
+
+# class Subject(models.Model):
+#     department = models.ForeignKey(Department, on_delete=models.DO_NOTHING)
+#     subject_name = models.CharField(max_length=250, null=False)
+
+
+# class ClassRoomType(models.Model):
+#     name = models.CharField(max_length=250, null=False)
+
+
+# class ClassRoom(models.Model):
+#     room_type = models.ForeignKey(ClassRoomType, on_delete=models.DO_NOTHING)
+#     room_name = models.CharField(max_length=200)
+#     capacity = models.IntegerField()
