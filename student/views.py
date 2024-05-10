@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from .models import GuardianType, Student
 from .serializers import GuardianTypeSerializer, StudentSerializer
 from rest_framework import status
+from rest_framework import filters
 
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -116,3 +117,5 @@ def GuardianTypeView(request, pk=None):
 class StudentView(ModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['user__email', 'user__first_name', 'enrolment_date']
