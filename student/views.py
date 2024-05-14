@@ -123,18 +123,18 @@ class StudentView(ModelViewSet):
         user_instance = instance.user
         student_role = Role.objects.get(name='student')
 
-        if user_instance.role.filter(name='student').exists():
-            user_instance.role.remove(student_role)
-            other_roles = user_instance.role.exclude(name='student')
-            if other_roles.exists():
+        
+        user_instance.role.remove(student_role)
+        other_roles = user_instance.role.exclude(name='student')
+        if other_roles.exists():
                 self.perform_destroy(instance)
                 return Response({"success": "Student profile deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
-            else:
-                user_instance.delete()
-                return Response({"success": "Student profile and related user deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
         else:
-            self.perform_destroy(instance)
-            return Response({"success": "Student profile deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+                
+                instance.delete()
+                self.perform_destroy(user_instance)
+                return Response({"success": "Student profile and related user deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+       
 
 
 

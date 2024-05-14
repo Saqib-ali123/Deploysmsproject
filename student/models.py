@@ -7,8 +7,7 @@ from authentication.models import User
 
 
 class Student(models.Model):
-    # user = models.OneToOneField(User, on_delete=models.DO_NOTHING)
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True)
     date_of_birth = models.DateField(null=False)
     gender = models.CharField(max_length=50)
     enrolment_date = models.DateField(null=False)
