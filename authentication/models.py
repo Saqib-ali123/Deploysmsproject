@@ -6,6 +6,7 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 
 
+
 class CustomUserManager(BaseUserManager):
     """Define a model manager for User model with no username field."""
 
