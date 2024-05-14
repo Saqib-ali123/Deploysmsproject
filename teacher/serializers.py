@@ -28,7 +28,7 @@ class TeacherSerializer(serializers.ModelSerializer):
         try:
             role, created = Role.objects.get_or_create(name='teacher')
         except MultipleObjectsReturned:
-            raise serializers.ValidationError("The role yoy are trying to create is already exists")
+            raise serializers.ValidationError("The role you are trying to create is already exists")
 
         user = User.objects.filter(email=user_data['email']).first()
 
