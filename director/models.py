@@ -73,7 +73,8 @@ class Address(models.Model):
 
 
 class Director(models.Model):
-    user = models.OneToOneField(User, on_delete=models.DO_NOTHING)
+    # user = models.OneToOneField(User, on_delete=models.DO_NOTHING)
+    user = models.OneToOneField(User, on_delete=models.SET_NULL,null=True)
     phone_no = models.CharField(max_length=250, null=False)
     gender = models.CharField(max_length=50)
 

@@ -21,7 +21,7 @@ from django.contrib import admin
 
 from rest_framework.routers import DefaultRouter
 
-from director.views import AddressView,PeriodView,CountryView,StateView,CityView
+from director.views import AddressView,PeriodView,CountryView,StateView,CityView,DirectorView
 from django.contrib import admin
 
 # Define the router for the StudentView
@@ -32,6 +32,7 @@ router.register(r'states', StateView)
 router.register(r'city', CityView)
 router.register(r'addresses', AddressView)
 router.register(r'Period', PeriodView)
+router.register(r'director', DirectorView)
 
 # Combine the router's URL patterns with the admin URL pattern
 urlpatterns = [

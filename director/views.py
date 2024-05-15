@@ -4,6 +4,7 @@ from .models import YearLevel
 from .serializers import *
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework import filters
 
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -491,3 +492,11 @@ class AddressView(viewsets.ModelViewSet):
 class PeriodView(viewsets.ModelViewSet):
     queryset =Period.objects.all()
     serializer_class = PeriodSerializer
+
+
+class DirectorView(viewsets.ModelViewSet):
+    queryset = Director.objects.all()
+    serializer_class = DirectorProfileSerializer
+  
+
+    
