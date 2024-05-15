@@ -30,7 +30,7 @@ class Student(models.Model):
 class Guardian(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE,related_name='guardian_relation')
     phone_no = models.CharField(max_length=50, null=False)
-    
+
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name}"

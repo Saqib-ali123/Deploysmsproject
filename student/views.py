@@ -130,39 +130,6 @@ class GuardianProfileViewSet(viewsets.ModelViewSet):
     search_fields = ['user__email','user__first_name','user__guardian_relation__phone_no']
 
 
-    def put(self, request, pk):
-        try:
-            guardian_instance = Guardian.objects.get(pk=pk)
-        except Guardian.DoesNotExist:
-            return Response({"error": "Guardian not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = GuardianSerializer(guardian_instance, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     
-
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        user_instance = instance.user
-        
-        try:
-            role = Role.objects.get(name='guardian')
-        except Role.DoesNotExist:
-            return Response({"error": "Guardian role does not exist"}, status=status.HTTP_404_NOT_FOUND)
-
-        if user_instance.role.exclude(name='guardian').exists():
-            user_instance.role.remove(role)
-            instance.delete()
-
-            return Response({"message": "Role removed successfully from user and deletd data from gaurdian"}, status=status.HTTP_200_OK)
-        else:
-            try:
-                self.perform_destroy(instance)
-                user_instance.delete()
-                return Response({"message": "Successfully deleted"}, status=status.HTTP_204_NO_CONTENT)
-            except Exception as e:
-                return Response ({"error": "Deletion unsuccessful: Error deleting user"})
-             
