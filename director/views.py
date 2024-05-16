@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from .models import YearLevel
 from .serializers import *
 from rest_framework import status
+from . models import *
+from rest_framework import viewsets
 
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -452,3 +454,7 @@ def RoleView(request, pk=None):
             return Response(
                 {"message": "Role not Found"}, status=status.HTTP_404_NOT_FOUND
             )
+
+class BankingDetails(viewsets.ModelViewSet):
+    queryset = BankingDetail.objects.all()
+    serializer_class = BankingDetailsSerializer
