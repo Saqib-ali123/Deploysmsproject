@@ -154,7 +154,7 @@ class StudentView(ModelViewSet):
 
 
 
-class GuardianProfile(viewsets.ModelViewSet):
+class GuardianProfileView(viewsets.ModelViewSet):
     queryset = Guardian.objects.all()
     serializer_class = GuardianSerializer
     filter_backends = [SearchFilter]
