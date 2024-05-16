@@ -2,7 +2,6 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import *
 
-# Define the router for the StudentView
 router = DefaultRouter()
 router.register(r'students', StudentView)
 
