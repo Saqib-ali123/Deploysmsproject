@@ -14,7 +14,9 @@ def YearLevelView(request, id=None):
         if id is not None:
             try:
                 YearLevels = YearLevel.objects.get(pk=id)
-                serialize = YearLevelSerializer(YearLevel, many=False)
+                print(YearLevels)
+                serialize = YearLevelSerializer(YearLevels, many=False)
+                print(serialize)
                 return Response(serialize.data, status=status.HTTP_200_OK)
             except YearLevel.DoesNotExist:
                 return Response(
@@ -23,7 +25,7 @@ def YearLevelView(request, id=None):
                 )
             except Exception as e:
                 return Response(
-                    data={"message": "something went wrong"},
+                    data={"message": f"something went wrong {e}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
         else:
