@@ -1,6 +1,16 @@
-from django.urls import path
+from django.urls import path,include
 from .views import *
+from rest_framework.routers import DefaultRouter
 
+
+router = DefaultRouter()
+
+router.register(r'country', CountryView)
+router.register(r'states', StateView)
+router.register(r'city', CityView)
+router.register(r'addresses', AddressView)
+router.register(r'Period', PeriodView)
+router.register(r'director', DirectorView)
 
 urlpatterns = [
     path("year-levels/", YearLevelView),
@@ -13,4 +23,12 @@ urlpatterns = [
     path("classroom-type/<int:pk>/", ClassRoomTypeView),
     path("roles/", RoleView, name="roleDetails"),
     path("role/<int:pk>/", RoleView, name="roleDetails"),
+    path('', include(router.urls)), 
 ]
+
+
+
+
+
+
+
