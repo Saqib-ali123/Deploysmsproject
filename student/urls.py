@@ -19,7 +19,7 @@ urlpatterns = [
 # Define the router for the StudentView
 router = DefaultRouter()
 router.register(r'students', StudentView)
-router.register(r'gaurdian', GuardianProfileViewSet)
+router.register(r'gaurdian', GuardianProfile)
 
 # Combine the router's URL patterns with the admin URL pattern
 urlpatterns = [
