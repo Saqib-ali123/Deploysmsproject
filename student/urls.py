@@ -16,6 +16,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from student.views import StudentView
+from  student.views import GuardianProfileView
 
 from django.contrib import admin
 
@@ -28,3 +29,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),  # Admin URL pattern
     path('', include(router.urls)),   # Router's URL patterns
 ]
+
+router = DefaultRouter()
+router.register(r'gaurdian', GuardianProfileView)
+
+urlpatterns = router.urls
