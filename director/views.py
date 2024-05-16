@@ -1,10 +1,11 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import YearLevel
+
 from .serializers import *
 from rest_framework import status
 from rest_framework import viewsets
 from rest_framework import filters
+from . models import *
 
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -514,3 +515,67 @@ class DirectorView(viewsets.ModelViewSet):
             user_instance.delete()  
         return Response({"success": "Successfully deleted"}, status=status.HTTP_204_NO_CONTENT)
 
+
+
+
+# ==============Country================
+class CountryView(viewsets.ModelViewSet):
+    queryset = Country.objects.all()
+    serializer_class = CountrySerializer
+
+
+
+# ===============State===================
+class StateView(viewsets.ModelViewSet):
+    queryset = State.objects.all()
+    serializer_class = StateSerializer
+
+
+
+
+# ================City===============
+class CityView(viewsets.ModelViewSet):
+    queryset = City.objects.all()
+    serializer_class = CitySerializer
+
+
+
+
+# ===========Address==========
+class AddressView(viewsets.ModelViewSet):
+    queryset = Address.objects.all()
+    serializer_class = AddressSerializer
+
+
+
+# ===========Period============
+
+class PeriodView(viewsets.ModelViewSet):
+    queryset =Period.objects.all()
+    serializer_class = PeriodSerializer
+
+
+class DirectorView(viewsets.ModelViewSet):
+    queryset = Director.objects.all()
+    serializer_class = DirectorProfileSerializer
+  
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()       
+        user_instance = instance.user         
+        if user_instance.role.exclude(name='director').exists():
+            try:            
+                role = Role.objects.get(name='director')               
+                user_instance.role.remove(role)
+            except Role.DoesNotExist:             
+                pass         
+            self.perform_destroy(instance)
+        else:       
+            instance.delete()
+            user_instance.delete()  
+        return Response({"success": "Successfully deleted"}, status=status.HTTP_204_NO_CONTENT)
+
+
+class BankingDetails(viewsets.ModelViewSet):
+    queryset = BankingDetail.objects.all()
+    serializer_class = BankingDetailsSerializer
