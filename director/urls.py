@@ -32,6 +32,8 @@ router.register(r'states', StateView)
 router.register(r'city', CityView)
 router.register(r'addresses', AddressView)
 router.register(r'Period', PeriodView)
+router.register(r'terms', TermView)
+
 
 # Combine the router's URL patterns with the admin URL pattern
 urlpatterns = [

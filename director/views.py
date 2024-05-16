@@ -491,3 +491,8 @@ class AddressView(viewsets.ModelViewSet):
 class PeriodView(viewsets.ModelViewSet):
     queryset =Period.objects.all()
     serializer_class = PeriodSerializer
+
+
+class TermView(viewsets.ModelViewSet):
+    queryset =Term.objects.all()
+    serializer_class = TermSerializer

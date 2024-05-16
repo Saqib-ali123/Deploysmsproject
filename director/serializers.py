@@ -104,3 +104,16 @@ class PeriodSerializer(serializers.ModelSerializer):
             # Handle the case where 'year' is None or does not have the attribute 'year_name'
             representation['year'] = None # to indicate that the year is not available.
         return representation
+    
+
+class TermSerializer(serializers.ModelSerializer):
+        year = serializers.PrimaryKeyRelatedField(queryset = SchoolYear.objects.all())
+
+        class Meta:
+            model = Term
+            fields = ['id','year', 'term_number', 'start_date', 'end_date']
+
+        def to_representation(self, instance):
+            representation = super().to_representation(instance)
+            representation['year'] = instance.year.year_name
+            return representation
