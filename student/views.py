@@ -7,6 +7,12 @@ from .models import GuardianType, Student
 from .serializers import GuardianTypeSerializer, StudentSerializer
 from rest_framework import status
 from rest_framework import filters
+from rest_framework.response import Response
+from .serializers import GuardianSerializer
+from .models import Guardian
+from director.models import Role
+from rest_framework.filters import SearchFilter
+from rest_framework import viewsets
 
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -147,3 +153,14 @@ class StudentView(ModelViewSet):
 
 
 
+
+class GuardianProfileView(viewsets.ModelViewSet):
+    queryset = Guardian.objects.all()
+    serializer_class = GuardianSerializer
+    filter_backends = [SearchFilter]
+    search_fields = ['user__email','user__first_name','user__guardian_relation__phone_no']
+
+
+
+
+    
