@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path,include
 from .views import *
 
 
@@ -13,4 +13,26 @@ urlpatterns = [
     path("classroom-type/<int:pk>/", ClassRoomTypeView),
     path("roles/", RoleView, name="roleDetails"),
     path("role/<int:pk>/", RoleView, name="roleDetails"),
+]
+
+
+from rest_framework.routers import DefaultRouter
+
+from director.views import AddressView,PeriodView,CountryView,StateView,CityView,DirectorView
+
+
+# Define the router for the StudentView
+router = DefaultRouter()
+
+router.register(r'country', CountryView)
+router.register(r'states', StateView)
+router.register(r'city', CityView)
+router.register(r'addresses', AddressView)
+router.register(r'Period', PeriodView)
+router.register(r'director', DirectorView)
+
+# Combine the router's URL patterns with the admin URL pattern
+urlpatterns = [
+   # Admin URL pattern
+    path('', include(router.urls)),   # Router's URL patterns
 ]
