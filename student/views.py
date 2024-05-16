@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from .serializers import GuardianSerializer
 from .models import Guardian
 from director.models import Role
+from rest_framework.filters import SearchFilter
 from rest_framework import viewsets
 
 
@@ -127,7 +128,6 @@ class StudentView(ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ['user__email', 'user__first_name', 'enrolment_date']
 
-    
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         user_instance = instance.user
@@ -147,11 +147,20 @@ class StudentView(ModelViewSet):
        
 
 
+
+
+
+
+
+
+
+
 class GuardianProfileView(viewsets.ModelViewSet):
     queryset = Guardian.objects.all()
     serializer_class = GuardianSerializer
-   
-
+    filter_backends = [SearchFilter]
+    search_fields = ['user__email','user__first_name','user__guardian_relation__phone_no']
+  
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         user_instance = instance.user
