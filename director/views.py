@@ -1,9 +1,11 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import YearLevel
+
 from .serializers import *
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework import filters
+from .models import *
 
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -11,8 +13,8 @@ def YearLevelView(request, id=None):
     if request.method == "GET":
         if id is not None:
             try:
-                YearLevel = YearLevel.objects.get(pk=id)
-                serialize = YearLevelSerializer(YearLevel, many=False)
+                YearLevels = YearLevel.objects.get(pk=id)
+                serialize = YearLevelSerializer(YearLevels, many=False)
                 return Response(serialize.data, status=status.HTTP_200_OK)
             except YearLevel.DoesNotExist:
                 return Response(
@@ -21,7 +23,7 @@ def YearLevelView(request, id=None):
                 )
             except Exception as e:
                 return Response(
-                    data={"message": "something went wrong"},
+                    data={"message": f"something went wrong {e}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
         else:
@@ -132,9 +134,7 @@ def SchoolYearView(request, pk=None):
     elif request.method == "PUT":
         try:
             Store = SchoolYear.objects.get(id=pk)
-            Updated_SchoolYear = SchoolYearSerializer(
-                instance=Store, data=request.data
-            )
+            Updated_SchoolYear = SchoolYearSerializer(instance=Store, data=request.data)
 
             if Updated_SchoolYear.is_valid():
                 Updated_SchoolYear.save()
@@ -455,12 +455,10 @@ def RoleView(request, pk=None):
             )
 
 
-
 # ==============Country================
 class CountryView(viewsets.ModelViewSet):
     queryset = Country.objects.all()
     serializer_class = CountrySerializer
-
 
 
 # ===============State===================
@@ -469,14 +467,10 @@ class StateView(viewsets.ModelViewSet):
     serializer_class = StateSerializer
 
 
-
-
 # ================City===============
 class CityView(viewsets.ModelViewSet):
     queryset = City.objects.all()
     serializer_class = CitySerializer
-
-
 
 
 # ===========Address==========
@@ -485,12 +479,120 @@ class AddressView(viewsets.ModelViewSet):
     serializer_class = AddressSerializer
 
 
+# ===========Period============
+
+
+class PeriodView(viewsets.ModelViewSet):
+    queryset = Period.objects.all()
+    serializer_class = PeriodSerializer
+
+
+class DirectorView(viewsets.ModelViewSet):
+    queryset = Director.objects.all()
+    serializer_class = DirectorProfileSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user_instance = instance.user
+        if user_instance.role.exclude(name="director").exists():
+            try:
+                role = Role.objects.get(name="director")
+                user_instance.role.remove(role)
+            except Role.DoesNotExist:
+                pass
+            self.perform_destroy(instance)
+        else:
+            instance.delete()
+            user_instance.delete()
+        return Response(
+            {"success": "Successfully deleted"}, status=status.HTTP_204_NO_CONTENT
+        )
+
+
+# ==============Country================
+class CountryView(viewsets.ModelViewSet):
+    queryset = Country.objects.all()
+    serializer_class = CountrySerializer
+
+
+# ===============State===================
+class StateView(viewsets.ModelViewSet):
+    queryset = State.objects.all()
+    serializer_class = StateSerializer
+
+
+# ================City===============
+class CityView(viewsets.ModelViewSet):
+    queryset = City.objects.all()
+    serializer_class = CitySerializer
+
+
+# ===========Address==========
+class AddressView(viewsets.ModelViewSet):
+    queryset = Address.objects.all()
+    serializer_class = AddressSerializer
+
 
 # ===========Period============
 
+
 class PeriodView(viewsets.ModelViewSet):
-    queryset =Period.objects.all()
+    queryset = Period.objects.all()
     serializer_class = PeriodSerializer
+
+
+class DirectorView(viewsets.ModelViewSet):
+    queryset = Director.objects.all()
+    serializer_class = DirectorProfileSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user_instance = instance.user
+        if user_instance.role.exclude(name="director").exists():
+            try:
+                role = Role.objects.get(name="director")
+                user_instance.role.remove(role)
+            except Role.DoesNotExist:
+                pass
+            self.perform_destroy(instance)
+        else:
+            instance.delete()
+            user_instance.delete()
+        return Response(
+            {"success": "Successfully deleted"}, status=status.HTTP_204_NO_CONTENT
+        )
+
+
+class BankingDetails(viewsets.ModelViewSet):
+    queryset = BankingDetail.objects.all()
+    serializer_class = BankingDetailsSerializer
+
+
+class DirectorView(viewsets.ModelViewSet):
+    queryset = Director.objects.all()
+    serializer_class = DirectorProfileSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user_instance = instance.user
+        if user_instance.role.exclude(name="director").exists():
+            try:
+                role = Role.objects.get(name="director")
+                user_instance.role.remove(role)
+            except Role.DoesNotExist:
+                pass
+            self.perform_destroy(instance)
+        else:
+            instance.delete()
+            user_instance.delete()
+        return Response(
+            {"success": "Successfully deleted"}, status=status.HTTP_204_NO_CONTENT
+        )
+
+
+class BankingDetails(viewsets.ModelViewSet):
+    queryset = BankingDetail.objects.all()
+    serializer_class = BankingDetailsSerializer
 
 
 class TermView(viewsets.ModelViewSet):
