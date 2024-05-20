@@ -11,6 +11,8 @@ router.register(r'city', CityView)
 router.register(r'addresses', AddressView)
 router.register(r'Period', PeriodView)
 router.register(r'director', DirectorView)
+router.register(r'banking_details', BankingDetailView)
+
 
 urlpatterns = [
     path("year-levels/", YearLevelView),

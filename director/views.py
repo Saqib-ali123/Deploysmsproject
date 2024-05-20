@@ -576,6 +576,6 @@ class DirectorView(viewsets.ModelViewSet):
         return Response({"success": "Successfully deleted"}, status=status.HTTP_204_NO_CONTENT)
 
 
-class BankingDetails(viewsets.ModelViewSet):
+class BankingDetailView(viewsets.ModelViewSet):
     queryset = BankingDetail.objects.all()
     serializer_class = BankingDetailsSerializer
