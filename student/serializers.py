@@ -4,6 +4,8 @@ from authentication.models import User
 from director.models import Role,ClassPeriod
 from .models import GuardianType, Student
 
+
+
 from django.db import IntegrityError
 from django.core.exceptions import MultipleObjectsReturned
 
@@ -125,6 +127,7 @@ class GuardianSerializer(serializers.ModelSerializer):
         model = Guardian
         exclude = ['user']
 
+    
     def create(self, validated_data):
         
         user_data = {
