@@ -4,6 +4,15 @@ from django.shortcuts import get_object_or_404
 from .models import User
 from .serializers import *
 from rest_framework import status
+from rest_framework.response import Response
+
+from django.utils.crypto import get_random_string
+from django.core.mail import send_mail
+from django.core.cache import cache
+
+
+
+
 
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -46,3 +55,79 @@ def UserView(request, pk=None):
         return Response(
             {"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT
         )
+
+
+
+@api_view(['POST'])
+
+
+def Send_Otp(request):
+
+    email_serialzer=OTP_serializers(data=request.data)
+
+    if email_serialzer.is_valid():
+        email=email_serialzer.validated_data['email']
+        otp=get_random_string(length=6, allowed_chars='1234567890')
+        cache.set(email, otp , timeout=300)
+
+        if email is not None:
+
+            send_mail(
+                'Forgot your Password',
+                f'Your Otp for Forgot Password {otp}',
+                'anasirfan502@gmail.com',
+
+                [email],
+
+                fail_silently=False
+            )
+
+            return Response({'Message':'Otp Sent to your Email'},status=status.HTTP_200_OK)
+        return Response({'Message':'Invalid Email'},status=status.HTTP_204_NO_CONTENT)
+    
+    return Response(email_serialzer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+@api_view(['POST'])
+
+def Forgot_Password(request):
+    serializer_data=forgot_serializers(data=request.data)
+
+    if serializer_data.is_valid():
+        email=serializer_data.validated_data['email']
+        otp=serializer_data.validated_data['otp']
+        new_password=serializer_data.validated_data['new_password']
+
+
+        cached_otp=cache.get(email)
+
+        if cached_otp==otp:
+            try:
+                user=User.objects.get(email=email)
+
+            except User.DoesNotExist:
+
+                return Response({"error":"User Not Found"},status=status.HTTP_404_NOT_FOUND)
+            
+            user.set_password(new_password)
+            user.save()
+            cache.delete(email)
+
+            return Response({'Message':'Forgot otp Successfull'},status=status.HTTP_200_OK)
+        return Response({"Message":"Invalid OTP "},status=status.HTTP_400_BAD_REQUEST)
+    
+    return Response(serializer_data.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+        
+
+        
+    
+            
+            
+
+
+
+
+
