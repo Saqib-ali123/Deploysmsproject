@@ -35,6 +35,11 @@ class Login_serializers(serializers.Serializer):
 
 
 
+class OTP_serializers(serializers.Serializer):
+    email=serializers.EmailField()
+
+
+
 
 # class role_Serializers(serializers.ModelSerializer):
 #     class Meta:
