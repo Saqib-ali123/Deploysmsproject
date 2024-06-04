@@ -4,6 +4,8 @@ from django.shortcuts import get_object_or_404
 from .models import User
 from .serializers import *
 from rest_framework import status
+from django.contrib.auth import authenticate
+
 
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -46,3 +48,24 @@ def UserView(request, pk=None):
         return Response(
             {"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT
         )
+
+
+@api_view(['POST'])
+def Changed_Password(request):
+    current_password=request.data.get('current_password')
+    Change_Password=request.data.get('change_password')
+    email=request.data.get('email')
+
+    serialized=Change_Password_serializer(data=request.data)
+
+    if serialized.is_valid():
+        
+        user=authenticate(email=email,password=current_password)
+
+        if user is not None:
+
+            user.set_password(Change_Password)
+            user.save()
+            return Response({'Message':' Changed password Successfully'})
+        
+        return Response({'Message ':' Invalid Password'})

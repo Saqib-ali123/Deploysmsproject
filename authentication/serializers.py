@@ -24,3 +24,9 @@ class UserSerializer(serializers.ModelSerializer):
             "roles",
         ]
         extra_kwargs = {"password": {"write_only": True}}
+
+
+class Change_Password_serializer(serializers.Serializer):
+    current_password=serializers.CharField(min_length=8)
+    change_password = serializers.CharField(min_length=8)
+    email=serializers.EmailField
