@@ -58,13 +58,13 @@ def UserView(request, pk=None):
 
 @api_view(['POST'])
 
-def Login_Views(request):
+def LoginViews(request):
     if request.method== "POST":
         email=request.data.get('email')
         password=request.data.get('password')
         role=request.data.get('role')
 
-        Serializer_Data=Login_serializers(data=request.data)
+        Serializer_Data=LoginSerializers(data=request.data)
 
         if Serializer_Data.is_valid():
 
@@ -98,36 +98,9 @@ def Login_Views(request):
             errors=Serializer_Data.errors
             return Response(errors,status=400)
 
-from rest_framework import status
-
-@api_view(['POST'])
 
 
-def Send_Otp(request):
 
-    email_serialzer=OTP_serializers(data=request.data)
-
-    if email_serialzer.is_valid():
-        email=email_serialzer.validated_data['email']
-        otp=get_random_string(length=6, allowed_chars='1234567890')
-        cache.set(email, otp , timeout=300)
-
-        if email is not None:
-
-            send_mail(
-                'Forgot your Password',
-                f'Your Otp for Forgot Password {otp}',
-                'anasirfan502@gmail.com',
-
-                [email],
-
-                fail_silently=False
-            )
-
-            return Response({'Message':'Otp Sent to your Email'},status=status.HTTP_200_OK)
-        return Response({'Message':'Invalid Email'},status=status.HTTP_204_NO_CONTENT)
-    
-    return Response(email_serialzer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
