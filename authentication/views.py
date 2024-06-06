@@ -51,12 +51,12 @@ def UserView(request, pk=None):
 
 
 @api_view(['POST'])
-def Changed_Password(request):
+def ChangePasswordView(request): #ChangePasswoordView
     current_password=request.data.get('current_password')
     Change_Password=request.data.get('change_password')
     email=request.data.get('email')
 
-    serialized=Change_Password_serializer(data=request.data)
+    serialized=ChangePasswordSerializer(data=request.data)
 
     if serialized.is_valid():
         
