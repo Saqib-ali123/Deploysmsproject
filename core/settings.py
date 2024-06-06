@@ -28,8 +28,8 @@ SECRET_KEY = "django-insecure-(kcrb)#75z(_7h4s7qu3^iw-!6#o7t0_plu87x$=zok%rmr=w^
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
-
 CORS_ALLOW_ALL_ORIGINS = True
+
 
 AUTH_USER_MODEL = "authentication.User"
 
@@ -58,8 +58,9 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-   "corsheaders.middleware.CorsMiddleware",
-    "django.middleware.common.CommonMiddleware",
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
+
 ]
 
 ROOT_URLCONF = "core.urls"
@@ -79,6 +80,9 @@ TEMPLATES = [
         },
     },
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
+
 
 WSGI_APPLICATION = "core.wsgi.application"
 

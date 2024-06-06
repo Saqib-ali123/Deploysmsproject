@@ -58,9 +58,9 @@ class Address(models.Model):
     user = models.ForeignKey(User, on_delete=models.DO_NOTHING)
     house_no = models.IntegerField()
     area_code = models.IntegerField()
-    country = models.OneToOneField(Country, on_delete=models.DO_NOTHING)
-    state = models.OneToOneField(State, on_delete=models.DO_NOTHING)
-    city = models.OneToOneField(City, on_delete=models.DO_NOTHING)
+    country = models.ForeignKey(Country, on_delete=models.DO_NOTHING)
+    state = models.ForeignKey(State, on_delete=models.DO_NOTHING)
+    city = models.ForeignKey(City, on_delete=models.DO_NOTHING)
     address_line = models.CharField(max_length=250)
 
     def __str__(self):
@@ -73,7 +73,7 @@ class Address(models.Model):
 
 
 class Director(models.Model):
-    user = models.OneToOneField(User, on_delete=models.DO_NOTHING)
+    user = models.OneToOneField(User, on_delete=models.SET_NULL,null=True)
     phone_no = models.CharField(max_length=250, null=False)
     gender = models.CharField(max_length=50)
 
@@ -229,3 +229,6 @@ class ClassPeriod(models.Model):
         verbose_name = "ClassPeriod"
         verbose_name_plural = "ClassPeriods"
         db_table = "ClassPeriod"
+
+
+
