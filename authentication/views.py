@@ -61,9 +61,9 @@ def UserView(request, pk=None):
 @api_view(['POST'])
 
 
-def Send_Otp(request):
+def SendOtpView(request):
 
-    email_serialzer=OTP_serializers(data=request.data)
+    email_serialzer=OtpSerializers(data=request.data)
 
     if email_serialzer.is_valid():
         email=email_serialzer.validated_data['email']
@@ -92,8 +92,8 @@ def Send_Otp(request):
 
 @api_view(['POST'])
 
-def Forgot_Password(request):
-    serializer_data=forgot_serializers(data=request.data)
+def ForgotPasswordView(request):
+    serializer_data=ForgotSerializers(data=request.data)
 
     if serializer_data.is_valid():
         email=serializer_data.validated_data['email']

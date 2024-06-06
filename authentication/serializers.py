@@ -26,10 +26,10 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {"password": {"write_only": True}}
 
 
-class OTP_serializers(serializers.Serializer):
+class OtpSerializers(serializers.Serializer):
     email=serializers.EmailField()
 
-class forgot_serializers(serializers.Serializer):
+class ForgotSerializers(serializers.Serializer):
     email=serializers.EmailField()
     otp=serializers.CharField(max_length=6)
     new_password=serializers.CharField(min_length=8,write_only=True)
