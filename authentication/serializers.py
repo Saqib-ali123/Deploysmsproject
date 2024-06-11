@@ -29,15 +29,13 @@ class LoginSerializers(serializers.Serializer):
     email=serializers.EmailField()
     password=serializers.CharField(max_length=12)
     role=serializers.CharField(max_length=30)
-    # class Meta:
-        # model=User
-        # fields='__all__'
+    
 
 
 
-# class OTP_serializers(serializers.Serializer):
-#     email=serializers.EmailField()
-
+class LogoutSerializers(serializers.Serializer):
+    refresh_token=serializers.CharField()
+    
 
 
 

@@ -5,7 +5,7 @@ from .models import User
 from .serializers import *
 from rest_framework import status
 from django.contrib.auth import authenticate
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken,BlacklistMixin
 from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.core.cache import cache
@@ -57,7 +57,6 @@ def UserView(request, pk=None):
 
 
 @api_view(['POST'])
-
 def LoginViews(request):
     if request.method== "POST":
         email=request.data.get('email')
@@ -90,6 +89,8 @@ def LoginViews(request):
 
             access=str(refresh.access_token)
             refresh=str(refresh)
+            
+            # refresh.blacklist()
 
             return Response ({"Access Token ":access, "Refresh Token ":refresh ,"Message":"Token Role base Authentication is Successfully"  })
         
@@ -97,6 +98,60 @@ def LoginViews(request):
         else:
             errors=Serializer_Data.errors
             return Response(errors,status=400)
+        
+from django.contrib.auth import logout
+@api_view(['POST'])  
+def LogOutView(request):
+    if request.method=='POST':
+
+        # Refresh_token=request.data.get('refresh_token')
+
+        serializer=LogoutSerializers(data=request.data)
+
+        if serializer.is_valid():
+            refresh_token=serializer.validated_data.get('refresh_token')
+
+            if refresh_token:
+                refresh=RefreshToken(refresh_token)
+                refresh.blacklist()
+
+                return Response({"Message":"LogOut Successfuly and Refresh token convert into blacklist"},status=status.HTTP_200_OK)
+            
+            return Response({"error":" Refresh token not provide"},status=status.HTTP_404_NOT_FOUND)
+        
+        return Response({"Error":"Invalid Serializer"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        #     blacklist_token(refresh_token)
+
+        #     return Response({"Message": "Token has been blacklisted"})
+        
+        # return Response({"Message": "Token is required"}, status=400)
+    
+
+        #     logout(request) 
+        #     return Response({"Message ": "Logout Successfully"},status=status.HTTP_200_OK)
+        
+        # return Response({"Meesage":"Invalid Refresh token "})
+        
+        
+
+    
+
+
+
 
 
 
