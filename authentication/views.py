@@ -69,3 +69,4 @@ def ChangePasswordView(request): #ChangePasswoordView
             return Response({'Message':' Changed password Successfully'})
         
         return Response({'Message ':' Invalid Password'})
+    return Response (serialized.errors, status=400)
