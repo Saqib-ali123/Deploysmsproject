@@ -566,3 +566,35 @@ class DirectorView(viewsets.ModelViewSet):
 class BankingDetails(viewsets.ModelViewSet):
     queryset = BankingDetail.objects.all()
     serializer_class = BankingDetailsSerializer
+
+
+class DirectorView(viewsets.ModelViewSet):
+    queryset = Director.objects.all()
+    serializer_class = DirectorProfileSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user_instance = instance.user
+        if user_instance.role.exclude(name="director").exists():
+            try:
+                role = Role.objects.get(name="director")
+                user_instance.role.remove(role)
+            except Role.DoesNotExist:
+                pass
+            self.perform_destroy(instance)
+        else:
+            instance.delete()
+            user_instance.delete()
+        return Response(
+            {"success": "Successfully deleted"}, status=status.HTTP_204_NO_CONTENT
+        )
+
+
+class BankingDetails(viewsets.ModelViewSet):
+    queryset = BankingDetail.objects.all()
+    serializer_class = BankingDetailsSerializer
+
+
+class TermView(viewsets.ModelViewSet):
+    queryset =Term.objects.all()
+    serializer_class = TermSerializer

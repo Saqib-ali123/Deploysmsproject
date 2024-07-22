@@ -11,6 +11,7 @@ router.register(r'city', CityView)
 router.register(r'addresses', AddressView)
 router.register(r'Period', PeriodView)
 router.register(r'director', DirectorView)
+router.register(r'terms', TermView)
 # router.register(r'director', DirectorView)
 
 urlpatterns = [
@@ -26,6 +27,8 @@ urlpatterns = [
     path("role/<int:pk>/", RoleView, name="roleDetails"),
     path('', include(router.urls)), 
 ]
+
+
 
 
 
