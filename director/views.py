@@ -309,7 +309,7 @@ def ClassRoomTypeView(request, pk=None):
         serialize = ClassRoomTypeSerializer(data=data)
         if serialize.is_valid():
 
-            if ClassRoomType.objects.filter(classroom_type=data["name"]).exists():
+            if ClassRoomType.objects.filter(name=data["name"]).exists():
 
                 return Response(
                     {"Message": "Classroom Type Already Exist"},
@@ -335,7 +335,7 @@ def ClassRoomTypeView(request, pk=None):
             if serialize.is_valid():
 
                 if ClassRoomType.objects.filter(
-                    classroom_type=request.data["name"].lower()
+                    name=request.data["name"].lower()
                 ).exists():
                     return Response(
                         {"Message": "Classroom Type Already Exist"},
@@ -350,17 +350,17 @@ def ClassRoomTypeView(request, pk=None):
                 {"Message": "Insert Valid Data"}, status.HTTP_400_BAD_REQUEST
             )
 
-        except YearLevel.DoesNotExist:
+        except ClassRoomType.DoesNotExist:
             return Response({"Message": "Data not found"}, status.HTTP_404_NOT_FOUND)
 
-    ##Deleteing data
+ 
     elif request.method == "DELETE":
         try:
             data = ClassRoomType.objects.get(id=pk)
             data.delete()
             return Response({"Message": "Data Deleted"}, status.HTTP_204_NO_CONTENT)
 
-        except YearLevel.DoesNotExist:
+        except ClassRoomType.DoesNotExist:
             return Response({"Message": "Data not found"}, status.HTTP_404_NOT_FOUND)
 
 
