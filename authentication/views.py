@@ -153,11 +153,12 @@ def SendOtpView(request):
         cache.set(email, otp , timeout=300)
 
         if email is not None:
+            from django.conf import settings
 
             send_mail(
                 'Reset your Password',
                 f'Your Otp for Forgot Password {otp}',
-                'anasirfan502@gmail.com',
+                settings.EMAIL_HOST_USER,
 
                 [email],
 
