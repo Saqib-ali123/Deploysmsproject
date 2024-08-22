@@ -56,8 +56,7 @@ def UserView(request, pk=None):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-
-def ChangePasswordView(request): #ChangePasswoordView
+def ChangePasswordView(request):
     current_password=request.data.get('current_password')
     Change_Password=request.data.get('change_password')
     email=request.data.get('email')
