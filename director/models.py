@@ -1,7 +1,5 @@
 from django.db import models
-from authentication.models import User
 
-# Create your models here.
 
 
 class Role(models.Model):
@@ -55,7 +53,7 @@ class City(models.Model):
 
 
 class Address(models.Model):
-    user = models.ForeignKey(User, on_delete=models.DO_NOTHING)
+    user = models.ForeignKey("authentication.User", on_delete=models.DO_NOTHING)
     house_no = models.IntegerField()
     area_code = models.IntegerField()
     country = models.ForeignKey(Country, on_delete=models.DO_NOTHING)
@@ -73,8 +71,7 @@ class Address(models.Model):
 
 
 class Director(models.Model):
-    # user = models.OneToOneField(User, on_delete=models.DO_NOTHING)
-    user = models.OneToOneField(User, on_delete=models.SET_NULL,null=True)
+    user = models.OneToOneField("authentication.User", on_delete=models.SET_NULL,null=True)
     phone_no = models.CharField(max_length=250, null=False)
     gender = models.CharField(max_length=50)
 
@@ -91,7 +88,7 @@ class BankingDetail(models.Model):
     account_no = models.BigIntegerField(primary_key=True, unique=True)
     ifsc_code = models.BigIntegerField()
     holder_name = models.CharField(max_length=255)
-    user = models.OneToOneField(User, on_delete=models.DO_NOTHING)
+    user = models.OneToOneField("authentication.User", on_delete=models.DO_NOTHING)
 
     def __str__(self):
         return str(self.account_no)

@@ -60,7 +60,6 @@ class User(AbstractUser, PermissionsMixin):
 
     objects = CustomUserManager()
 
-    # Define the role relationship
     role = models.ManyToManyField("director.Role", blank=True, related_name="user")
 
     class Meta:
@@ -70,3 +69,4 @@ class User(AbstractUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+

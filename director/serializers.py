@@ -27,13 +27,50 @@ class ClassRoomTypeSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class RoleSerializer(serializers.ModelSerializer):
+
+class BankingDetailsSerializer(serializers.ModelSerializer):
+    
+    email = serializers.EmailField(max_length = 250, write_only = True)
+
+
     class Meta:
-        model = Role
-        fields = "__all__"
+        model = BankingDetail
+        fields = ['email', 'account_no', 'ifsc_code', 'holder_name']
 
 
+    def create(self, validated_data):
+        user_data = {
+            'email': validated_data.pop('email')
+            }
+        user = User.objects.filter(email=user_data['email']).first()
+        if user:
 
+            banking_details = BankingDetail.objects.create(user=user, **validated_data)
+            return banking_details
+        else:
+            raise serializers.ValidationError("User does not exists")
+    
+        
+    def update(self, instance, validated_data):
+        instance.user.email = validated_data.get('email', User.email)
+        instance.account_no = validated_data.get('account_no', instance.account_no)
+        instance.ifsc_code = validated_data.get('ifsc_code', instance.ifsc_code)
+        instance.holder_name = validated_data.get('holder_name', instance.holder_name)
+        instance.save()
+        return instance
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation.update({
+            'first_name': instance.user.first_name,
+            'middle_name': instance.user.middle_name,
+            'last_name': instance.user.last_name,
+            'email': instance.user.email,
+            'account_no': instance.account_no,
+            'ifsc_code': instance.ifsc_code,
+            'holder_name': instance.holder_name,
+        })
+        return representation
 
 
 
@@ -100,6 +137,19 @@ class PeriodSerializer(serializers.ModelSerializer):
         except AttributeError:
             representation['year'] = None 
         return representation
+    
+
+class TermSerializer(serializers.ModelSerializer):
+        year = serializers.PrimaryKeyRelatedField(queryset = SchoolYear.objects.all())
+
+        class Meta:
+            model = Term
+            fields = ['id','year', 'term_number', 'start_date', 'end_date']
+
+        def to_representation(self, instance):
+            representation = super().to_representation(instance)
+            representation['year'] = instance.year.year_name
+            return representation
     
 
 class DirectorProfileSerializer(serializers.ModelSerializer):
