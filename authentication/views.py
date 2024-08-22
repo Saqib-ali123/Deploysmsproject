@@ -16,11 +16,6 @@ from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.core.cache import cache
 
-
-
-
-
-
 @api_view(["GET", "POST", "PUT", "DELETE"])
 def UserView(request, pk=None):
     if request.method == "GET":
@@ -86,7 +81,7 @@ def ChangePasswordView(request):
 
 
 @api_view(['POST'])
-def LoginViews(request):
+def LoginView(request):
     if request.method== "POST":
         email=request.data.get('email')
         password=request.data.get('password')
@@ -146,10 +141,6 @@ def LogOutView(request):
             return Response({"error":" Refresh token not provide"},status=status.HTTP_404_NOT_FOUND)
         
         return Response({"Error":"Invalid Serializer"}, status=status.HTTP_400_BAD_REQUEST)
-        
-
-
-
 
 @api_view(['POST'])
 def SendOtpView(request):
@@ -177,9 +168,6 @@ def SendOtpView(request):
         return Response({'Message':'Invalid Email'},status=status.HTTP_204_NO_CONTENT)
     
     return Response(email_serialzer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-
 
 @api_view(['POST'])
 def ForgotPasswordView(request):
