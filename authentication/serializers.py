@@ -36,10 +36,3 @@ class LoginSerializers(serializers.Serializer):
 class LogoutSerializers(serializers.Serializer):
     refresh_token=serializers.CharField()
     
-
-
-
-# class role_Serializers(serializers.ModelSerializer):
-#     class Meta:
-#         model=role
-#         fields='__all__'

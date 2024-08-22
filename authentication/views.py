@@ -90,7 +90,6 @@ def LoginViews(request):
             access=str(refresh.access_token)
             refresh=str(refresh)
             
-            # refresh.blacklist()
 
             return Response ({"Access Token ":access, "Refresh Token ":refresh ,"Message":"Token Role base Authentication is Successfully"  })
         
@@ -103,8 +102,6 @@ from django.contrib.auth import logout
 @api_view(['POST'])  
 def LogOutView(request):
     if request.method=='POST':
-
-        # Refresh_token=request.data.get('refresh_token')
 
         serializer=LogoutSerializers(data=request.data)
 
@@ -120,31 +117,6 @@ def LogOutView(request):
             return Response({"error":" Refresh token not provide"},status=status.HTTP_404_NOT_FOUND)
         
         return Response({"Error":"Invalid Serializer"}, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        #     blacklist_token(refresh_token)
-
-        #     return Response({"Message": "Token has been blacklisted"})
-        
-        # return Response({"Message": "Token is required"}, status=400)
-    
-
-        #     logout(request) 
-        #     return Response({"Message ": "Logout Successfully"},status=status.HTTP_200_OK)
-        
-        # return Response({"Meesage":"Invalid Refresh token "})
         
         
 
