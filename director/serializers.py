@@ -89,8 +89,6 @@ class RoleSerializer(serializers.ModelSerializer):
             return new_role
 
 
-
-# ========================Address========================
 class CountrySerializer(serializers.ModelSerializer):
     class Meta:
         model = Country
@@ -120,12 +118,10 @@ class AddressSerializer(serializers.ModelSerializer):
         representation['city'] = instance.city.name
         return representation
 
-# ======================PeriodSerializer==================================
 class SchoolYearSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchoolYear
         fields = '__all__'
-        # fields = ['year_name']
 
 class PeriodSerializer(serializers.ModelSerializer):
     year = serializers.PrimaryKeyRelatedField(queryset=SchoolYear.objects.all())
@@ -139,14 +135,26 @@ class PeriodSerializer(serializers.ModelSerializer):
         try:
             representation['year'] = instance.year.year_name
         except AttributeError:
-            # Handle the case where 'year' is None or does not have the attribute 'year_name'
-            representation['year'] = None # to indicate that the year is not available.
+            representation['year'] = None 
         return representation
+    
+
+class TermSerializer(serializers.ModelSerializer):
+        year = serializers.PrimaryKeyRelatedField(queryset = SchoolYear.objects.all())
+
+        class Meta:
+            model = Term
+            fields = ['id','year', 'term_number', 'start_date', 'end_date']
+
+        def to_representation(self, instance):
+            representation = super().to_representation(instance)
+            representation['year'] = instance.year.year_name
+            return representation
     
 
 class DirectorProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(max_length=100, write_only=True)
-    middle_name = serializers.CharField(max_length=100, write_only=True, allow_blank=True)
+    middle_name = serializers.CharField(max_length=100, write_only=True, allow_blank=True, required=False)
     last_name = serializers.CharField(max_length=100, write_only=True)
     email = serializers.EmailField(write_only=True)
     password = serializers.CharField(write_only=True)
@@ -165,7 +173,6 @@ class DirectorProfileSerializer(serializers.ModelSerializer):
             'password': validated_data.pop('password'),
         }
         try:
-             
             role, created = Role.objects.get_or_create(name='director')
         
         except MultipleObjectsReturned:
@@ -173,25 +180,21 @@ class DirectorProfileSerializer(serializers.ModelSerializer):
             
         user = User.objects.filter(email=user_data['email']).first()
         if user:
-           
-            user.first_name = user_data['first_name']
-            user.middle_name = user_data['middle_name']
-            user.last_name = user_data['last_name']
-            user.set_password(user_data['password'])
-            user.save()
-            
+                
             if not user.role.filter(name='director').exists():
              user.role.add(role)
         else:
         
             user = User.objects.create_user(**user_data)
-            
             user.role.add(role)
-        
+            user.save()
+
         try:
           director_profile = Director.objects.create(user=user, **validated_data)
+
         except IntegrityError:
            raise serializers.ValidationError("user with this email is already exists")  
+        
         return director_profile
 
     def to_representation(self, instance):
@@ -227,4 +230,5 @@ class DirectorProfileSerializer(serializers.ModelSerializer):
         instance.save()  
      except IntegrityError:
         raise serializers.ValidationError("user with this email does not exist")
+     
      return instance

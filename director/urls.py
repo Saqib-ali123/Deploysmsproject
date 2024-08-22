@@ -12,6 +12,7 @@ router.register(r'addresses', AddressView)
 router.register(r'Period', PeriodView)
 router.register(r'director', DirectorView)
 router.register(r'banking_details', BankingDetailView)
+router.register(r'terms', TermView)
 
 
 urlpatterns = [
@@ -27,6 +28,8 @@ urlpatterns = [
     path("role/<int:pk>/", RoleView, name="roleDetails"),
     path('', include(router.urls)), 
 ]
+
+
 
 
 
