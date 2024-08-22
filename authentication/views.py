@@ -1,17 +1,16 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from .models import User
 from .serializers import *
 from rest_framework import status
 from django.contrib.auth import authenticate
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken,BlacklistMixin
 from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.core.cache import cache
-
-
-
+from django.contrib.auth import logout
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
 def UserView(request, pk=None):
@@ -54,6 +53,28 @@ def UserView(request, pk=None):
             {"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT
         )
 
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def ChangePasswordView(request):
+    current_password=request.data.get('current_password')
+    Change_Password=request.data.get('change_password')
+    email=request.data.get('email')
+
+    serialized=ChangePasswordSerializer(data=request.data)
+
+    if serialized.is_valid():
+        
+        user=authenticate(email=email,password=current_password)
+
+        if user is not None:
+
+            user.set_password(Change_Password)
+            user.save()
+            return Response({'Message':' Changed password Successfully'})
+        
+        return Response({'Message ':' Invalid Password'})
+    return Response (serialized.errors, status=400)
 
 
 @api_view(['POST'])
@@ -98,7 +119,7 @@ def LoginViews(request):
             errors=Serializer_Data.errors
             return Response(errors,status=400)
         
-from django.contrib.auth import logout
+
 @api_view(['POST'])  
 def LogOutView(request):
     if request.method=='POST':
@@ -118,25 +139,4 @@ def LogOutView(request):
         
         return Response({"Error":"Invalid Serializer"}, status=status.HTTP_400_BAD_REQUEST)
         
-        
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
