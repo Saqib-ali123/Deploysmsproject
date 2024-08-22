@@ -144,6 +144,19 @@ class PeriodSerializer(serializers.ModelSerializer):
         return representation
     
 
+class TermSerializer(serializers.ModelSerializer):
+        year = serializers.PrimaryKeyRelatedField(queryset = SchoolYear.objects.all())
+
+        class Meta:
+            model = Term
+            fields = ['id','year', 'term_number', 'start_date', 'end_date']
+
+        def to_representation(self, instance):
+            representation = super().to_representation(instance)
+            representation['year'] = instance.year.year_name
+            return representation
+    
+
 class DirectorProfileSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(max_length=100, write_only=True)
     middle_name = serializers.CharField(max_length=100, write_only=True, allow_blank=True)

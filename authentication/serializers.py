@@ -30,3 +30,12 @@ class ChangePasswordSerializer(serializers.Serializer):
     current_password=serializers.CharField(min_length=8)
     change_password = serializers.CharField(min_length=8)
     email=serializers.EmailField
+
+class LoginSerializers(serializers.Serializer):
+    email=serializers.EmailField()
+    password=serializers.CharField(max_length=12)
+    role=serializers.CharField(max_length=30)
+    
+class LogoutSerializers(serializers.Serializer):
+    refresh_token=serializers.CharField()
+
