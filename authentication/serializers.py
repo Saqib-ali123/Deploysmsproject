@@ -24,3 +24,15 @@ class UserSerializer(serializers.ModelSerializer):
             "roles",
         ]
         extra_kwargs = {"password": {"write_only": True}}
+
+class LoginSerializers(serializers.Serializer):
+    email=serializers.EmailField()
+    password=serializers.CharField(max_length=12)
+    role=serializers.CharField(max_length=30)
+    
+
+
+
+class LogoutSerializers(serializers.Serializer):
+    refresh_token=serializers.CharField()
+    
