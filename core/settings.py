@@ -28,14 +28,10 @@ SECRET_KEY = "django-insecure-(kcrb)#75z(_7h4s7qu3^iw-!6#o7t0_plu87x$=zok%rmr=w^
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
+
 CORS_ALLOW_ALL_ORIGINS = True
 
-
 AUTH_USER_MODEL = "authentication.User"
-
-# Application definition
-# ALLOWED_HOSTS = []
-
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -57,7 +53,6 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -85,13 +80,9 @@ TEMPLATES = [
     },
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
-
 ROOT_URLCONF = "core.urls"
 
-
 WSGI_APPLICATION = "core.wsgi.application"
-
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
