@@ -52,8 +52,6 @@ class RoleSerializer(serializers.ModelSerializer):
             return new_role
 
 
-
-# ========================Address========================
 class CountrySerializer(serializers.ModelSerializer):
     class Meta:
         model = Country
@@ -83,12 +81,10 @@ class AddressSerializer(serializers.ModelSerializer):
         representation['city'] = instance.city.name
         return representation
 
-# ======================PeriodSerializer==================================
 class SchoolYearSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchoolYear
         fields = '__all__'
-        # fields = ['year_name']
 
 class PeriodSerializer(serializers.ModelSerializer):
     year = serializers.PrimaryKeyRelatedField(queryset=SchoolYear.objects.all())
@@ -102,8 +98,7 @@ class PeriodSerializer(serializers.ModelSerializer):
         try:
             representation['year'] = instance.year.year_name
         except AttributeError:
-            # Handle the case where 'year' is None or does not have the attribute 'year_name'
-            representation['year'] = None # to indicate that the year is not available.
+            representation['year'] = None 
         return representation
     
 
