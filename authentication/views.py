@@ -1,11 +1,17 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from .models import User
 from .serializers import *
 from rest_framework import status
+from django.contrib.auth import authenticate
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken,BlacklistMixin
+from django.utils.crypto import get_random_string
+from django.core.mail import send_mail
+from django.core.cache import cache
+from django.contrib.auth import logout
 from rest_framework.response import Response
-
 from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.core.cache import cache
@@ -56,11 +62,96 @@ def UserView(request, pk=None):
             {"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT
         )
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def ChangePasswordView(request):
+    current_password=request.data.get('current_password')
+    Change_Password=request.data.get('change_password')
+    email=request.data.get('email')
+
+    serialized=ChangePasswordSerializer(data=request.data)
+
+    if serialized.is_valid():
+        
+        user=authenticate(email=email,password=current_password)
+
+        if user is not None:
+
+            user.set_password(Change_Password)
+            user.save()
+            return Response({'Message':' Changed password Successfully'})
+        
+        return Response({'Message ':' Invalid Password'})
+    return Response (serialized.errors, status=400)
 
 
 @api_view(['POST'])
+def LoginViews(request):
+    if request.method== "POST":
+        email=request.data.get('email')
+        password=request.data.get('password')
+        role=request.data.get('role')
+
+        Serializer_Data=LoginSerializers(data=request.data)
+
+        if Serializer_Data.is_valid():
+
+            user =authenticate(email=email,password=password)
+
+            if user is None:
+                return Response({'Message':'Authentication failed , Invalid Email and Password'})
+            
+            user_role = user.role.all()
+            print(user_role)
+
+            user_filter=user_role.filter(name=role).first()
+
+            print(user_filter)
+
+            if user_filter is None:
+                return Response({"Message":"Invalid Role"})
+            
+
+            refresh= RefreshToken.for_user(user)
+            refresh['role']=role
 
 
+            access=str(refresh.access_token)
+            refresh=str(refresh)
+            
+
+            return Response ({"Access Token ":access, "Refresh Token ":refresh ,"Message":"Token Role base Authentication is Successfully"  })
+        
+
+        else:
+            errors=Serializer_Data.errors
+            return Response(errors,status=400)
+        
+
+@api_view(['POST'])  
+def LogOutView(request):
+    if request.method=='POST':
+
+        serializer=LogoutSerializers(data=request.data)
+
+        if serializer.is_valid():
+            refresh_token=serializer.validated_data.get('refresh_token')
+
+            if refresh_token:
+                refresh=RefreshToken(refresh_token)
+                refresh.blacklist()
+
+                return Response({"Message":"LogOut Successfuly and Refresh token convert into blacklist"},status=status.HTTP_200_OK)
+            
+            return Response({"error":" Refresh token not provide"},status=status.HTTP_404_NOT_FOUND)
+        
+        return Response({"Error":"Invalid Serializer"}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+
+
+
+@api_view(['POST'])
 def SendOtpView(request):
 
     email_serialzer=OtpSerializers(data=request.data)
@@ -73,7 +164,7 @@ def SendOtpView(request):
         if email is not None:
 
             send_mail(
-                'Forgot your Password',
+                'Reset your Password',
                 f'Your Otp for Forgot Password {otp}',
                 'anasirfan502@gmail.com',
 
@@ -91,7 +182,6 @@ def SendOtpView(request):
 
 
 @api_view(['POST'])
-
 def ForgotPasswordView(request):
     serializer_data=ForgotSerializers(data=request.data)
 
@@ -119,15 +209,3 @@ def ForgotPasswordView(request):
         return Response({"Message":"Invalid OTP "},status=status.HTTP_400_BAD_REQUEST)
     
     return Response(serializer_data.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-        
-
-        
-    
-            
-            
-
-
-
-
-
