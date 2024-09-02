@@ -97,12 +97,7 @@ def LoginView(request):
                 )
 
             user_role = user.role.all()
-            print(user_role)
-
             user_filter = user_role.filter(name=role).first()
-
-            print(user_filter)
-
             if user_filter is None:
                 return Response(
                     {"Message": "Invalid Role"}, status=status.HTTP_400_BAD_REQUEST
@@ -146,7 +141,7 @@ def LogOutView(request):
                 )
 
             return Response(
-                {"error": " Refresh token not provide"},
+                {"error": "Refresh token not provide"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
