@@ -92,7 +92,7 @@ def LoginView(request):
 
             if user is None:
                 return Response(
-                    {"Message": "Authentication failed , Invalid Email and Password"},
+                    {"Message": "Invalid Credentials"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -113,9 +113,9 @@ def LoginView(request):
                 {
                     "Access Token ": access,
                     "Refresh Token ": refresh,
-                    "Message": "Token Role base Authentication is Successfully",
+                    "Message": "User logged in Successfully",
                 },
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_200_OK,
             )
 
         else:
