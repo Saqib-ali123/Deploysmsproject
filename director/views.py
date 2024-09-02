@@ -563,7 +563,7 @@ class DirectorView(viewsets.ModelViewSet):
         )
 
 
-class BankingDetails(viewsets.ModelViewSet):
+class BankingDetailView(viewsets.ModelViewSet):
     queryset = BankingDetail.objects.all()
     serializer_class = BankingDetailsSerializer
 

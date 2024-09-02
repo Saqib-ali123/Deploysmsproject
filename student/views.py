@@ -13,6 +13,7 @@ from .models import Guardian
 from director.models import Role
 from rest_framework.filters import SearchFilter
 from rest_framework import viewsets
+from .pagination import CreatePagination
 
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -160,6 +161,8 @@ class GuardianProfileView(viewsets.ModelViewSet):
     serializer_class = GuardianSerializer
     filter_backends = [SearchFilter]
     search_fields = ['user__email','user__first_name','user__guardian_relation__phone_no']
+    pagination_class = CreatePagination
+
   
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
