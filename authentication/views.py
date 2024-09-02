@@ -6,15 +6,11 @@ from .serializers import *
 from rest_framework import status
 from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.tokens import RefreshToken,BlacklistMixin
+from rest_framework_simplejwt.tokens import RefreshToken, BlacklistMixin
 from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.core.cache import cache
-from django.contrib.auth import logout
-from rest_framework.response import Response
-from django.utils.crypto import get_random_string
-from django.core.mail import send_mail
-from django.core.cache import cache
+
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
 def UserView(request, pk=None):
@@ -57,144 +53,158 @@ def UserView(request, pk=None):
             {"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT
         )
 
-@api_view(['POST'])
+
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def ChangePasswordView(request):
-    current_password=request.data.get('current_password')
-    Change_Password=request.data.get('change_password')
-    email=request.data.get('email')
+    current_password = request.data.get("current_password")
+    Change_Password = request.data.get("change_password")
+    email = request.data.get("email")
 
-    serialized=ChangePasswordSerializer(data=request.data)
+    serialized = ChangePasswordSerializer(data=request.data)
 
     if serialized.is_valid():
-        
-        user=authenticate(email=email,password=current_password)
+
+        user = authenticate(email=email, password=current_password)
 
         if user is not None:
 
             user.set_password(Change_Password)
             user.save()
-            return Response({'Message':' Changed password Successfully'})
-        
-        return Response({'Message ':' Invalid Password'})
-    return Response (serialized.errors, status=400)
+            return Response({"Message": " Changed password Successfully"})
+
+        return Response({"Message ": " Invalid Password"})
+    return Response(serialized.errors, status=400)
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 def LoginView(request):
-    if request.method== "POST":
-        email=request.data.get('email')
-        password=request.data.get('password')
-        role=request.data.get('role')
+    if request.method == "POST":
+        email = request.data.get("email")
+        password = request.data.get("password")
+        role = request.data.get("role")
 
-        Serializer_Data=LoginSerializers(data=request.data)
+        Serializer_Data = LoginSerializers(data=request.data)
 
         if Serializer_Data.is_valid():
 
-            user =authenticate(email=email,password=password)
+            user = authenticate(email=email, password=password)
 
             if user is None:
-                return Response({'Message':'Authentication failed , Invalid Email and Password'})
-            
+                return Response(
+                    {"Message": "Authentication failed , Invalid Email and Password"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             user_role = user.role.all()
-            print(user_role)
-
-            user_filter=user_role.filter(name=role).first()
-
-            print(user_filter)
-
+            user_filter = user_role.filter(name=role).first()
             if user_filter is None:
-                return Response({"Message":"Invalid Role"})
-            
+                return Response(
+                    {"Message": "Invalid Role"}, status=status.HTTP_400_BAD_REQUEST
+                )
 
-            refresh= RefreshToken.for_user(user)
-            refresh['role']=role
+            refresh = RefreshToken.for_user(user)
+            refresh["role"] = role
 
+            access = str(refresh.access_token)
+            refresh = str(refresh)
 
-            access=str(refresh.access_token)
-            refresh=str(refresh)
-            
-
-            return Response ({"Access Token ":access, "Refresh Token ":refresh ,"Message":"Token Role base Authentication is Successfully"  })
-        
+            return Response(
+                {
+                    "Access Token ": access,
+                    "Refresh Token ": refresh,
+                    "Message": "Token Role base Authentication is Successfully",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         else:
-            errors=Serializer_Data.errors
-            return Response(errors,status=400)
-        
+            errors = Serializer_Data.errors
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['POST'])  
+
+@api_view(["POST"])
 def LogOutView(request):
-    if request.method=='POST':
+    if request.method == "POST":
 
-        serializer=LogoutSerializers(data=request.data)
+        serializer = LogoutSerializers(data=request.data)
 
         if serializer.is_valid():
-            refresh_token=serializer.validated_data.get('refresh_token')
+            refresh_token = serializer.validated_data.get("refresh_token")
 
             if refresh_token:
-                refresh=RefreshToken(refresh_token)
+                refresh = RefreshToken(refresh_token)
                 refresh.blacklist()
 
-                return Response({"Message":"LogOut Successfuly and Refresh token convert into blacklist"},status=status.HTTP_200_OK)
-            
-            return Response({"error":" Refresh token not provide"},status=status.HTTP_404_NOT_FOUND)
-        
-        return Response({"Error":"Invalid Serializer"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"Message": "LogOut Successfuly"}, status=status.HTTP_200_OK
+                )
 
-@api_view(['POST'])
+            return Response(
+                {"error": "Refresh token not provide"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response({"Error": "Invalid data"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
 def SendOtpView(request):
 
-    email_serialzer=OtpSerializers(data=request.data)
+    email_serialzer = OtpSerializers(data=request.data)
 
     if email_serialzer.is_valid():
-        email=email_serialzer.validated_data['email']
-        otp=get_random_string(length=6, allowed_chars='1234567890')
-        cache.set(email, otp , timeout=300)
+        email = email_serialzer.validated_data["email"]
+        otp = get_random_string(length=6, allowed_chars="1234567890")
+        cache.set(email, otp, timeout=300)
 
         if email is not None:
             from django.conf import settings
 
             send_mail(
-                'Reset your Password',
-                f'Your Otp for Forgot Password {otp}',
+                "Reset your Password",
+                f"Your Otp for Forgot Password {otp}",
                 settings.EMAIL_HOST_USER,
-
                 [email],
-
-                fail_silently=False
+                fail_silently=False,
             )
 
-            return Response({'Message':'Otp Sent to your Email'},status=status.HTTP_200_OK)
-        return Response({'Message':'Invalid Email'},status=status.HTTP_204_NO_CONTENT)
-    
+            return Response(
+                {"Message": "Otp Sent to your Email"}, status=status.HTTP_200_OK
+            )
+        return Response({"Message": "Invalid Email"}, status=status.HTTP_204_NO_CONTENT)
+
     return Response(email_serialzer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['POST'])
+
+@api_view(["POST"])
 def ForgotPasswordView(request):
-    serializer_data=ForgotSerializers(data=request.data)
+    serializer_data = ForgotSerializers(data=request.data)
 
     if serializer_data.is_valid():
-        email=serializer_data.validated_data['email']
-        otp=serializer_data.validated_data['otp']
-        new_password=serializer_data.validated_data['new_password']
+        email = serializer_data.validated_data["email"]
+        otp = serializer_data.validated_data["otp"]
+        new_password = serializer_data.validated_data["new_password"]
 
+        cached_otp = cache.get(email)
 
-        cached_otp=cache.get(email)
-
-        if cached_otp==otp:
+        if cached_otp == otp:
             try:
-                user=User.objects.get(email=email)
+                user = User.objects.get(email=email)
 
             except User.DoesNotExist:
 
-                return Response({"error":"User Not Found"},status=status.HTTP_404_NOT_FOUND)
-            
+                return Response(
+                    {"error": "User Not Found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
             user.set_password(new_password)
             user.save()
             cache.delete(email)
 
-            return Response({'Message':'Forgot otp Successfull'},status=status.HTTP_200_OK)
-        return Response({"Message":"Invalid OTP "},status=status.HTTP_400_BAD_REQUEST)
-    
+            return Response(
+                {"Message": "Forgot otp Successfull"}, status=status.HTTP_200_OK
+            )
+        return Response({"Message": "Invalid OTP "}, status=status.HTTP_400_BAD_REQUEST)
+
     return Response(serializer_data.errors, status=status.HTTP_400_BAD_REQUEST)
