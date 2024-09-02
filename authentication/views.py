@@ -101,7 +101,7 @@ def LoginViews(request):
 
         else:
             errors = Serializer_Data.errors
-            return Response(errors, status=status_HTTP_400_BAD_REQUEST)
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 from django.contrib.auth import logout
