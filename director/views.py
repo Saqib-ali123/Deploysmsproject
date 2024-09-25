@@ -598,3 +598,9 @@ class BankingDetails(viewsets.ModelViewSet):
 class TermView(viewsets.ModelViewSet):
     queryset =Term.objects.all()
     serializer_class = TermSerializer
+
+
+class AdmissionView(viewsets.ModelViewSet):
+    queryset = Admission.objects.all()
+    serializer_class = AdmissionSerializer
+    

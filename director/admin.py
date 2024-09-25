@@ -16,5 +16,6 @@ admin.site.register(
         Department,
         ClassPeriod,
         Role,
+        Admission,
     ]
 )
