@@ -77,16 +77,14 @@ def ChangePasswordView(request):
     return Response(serialized.errors, status=400)
 
 
-@api_view(["POST"])
+@api_view(["POST"])     # changes done as of 25Aril25
 def LoginView(request):
     if request.method == "POST":
-        email = request.data.get("email")
-        password = request.data.get("password")
-        role = request.data.get("role")
+        serializer = LoginSerializers(data=request.data)
 
-        Serializer_Data = LoginSerializers(data=request.data)
-
-        if Serializer_Data.is_valid():
+        if serializer.is_valid():
+            email = serializer.validated_data.get("email")
+            password = serializer.validated_data.get("password")
 
             user = authenticate(email=email, password=password)
 
@@ -96,31 +94,30 @@ def LoginView(request):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            user_role = user.role.all()
-            user_filter = user_role.filter(name=role).first()
-            if user_filter is None:
-                return Response(
-                    {"Message": "Invalid Role"}, status=status.HTTP_400_BAD_REQUEST
-                )
+            # roles for the user with its name
+            user_roles = user.role.all()
+            user_role_name = [role.name for role in user_roles]
 
+            # refresh tokens for the user
             refresh = RefreshToken.for_user(user)
-            refresh["role"] = role
-
-            access = str(refresh.access_token)
-            refresh = str(refresh)
+            
+            # access tokens and refresh tokens for the user and its conversion
+            access_token = str(refresh.access_token)
+            refresh_token = str(refresh)
 
             return Response(
                 {
-                    "Access Token ": access,
-                    "Refresh Token ": refresh,
-                    "Message": "User logged in Successfully",
+                    "Access Token": access_token,
+                    "Refresh Token": refresh_token,
+                    "User ID": user.id,
+                    "User Roles": user_role_name,
+                    "Message": "User logged in Successfully"
                 },
                 status=status.HTTP_200_OK,
             )
 
-        else:
-            errors = Serializer_Data.errors
-            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 @api_view(["POST"])
