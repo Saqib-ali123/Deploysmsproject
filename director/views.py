@@ -6,6 +6,12 @@ from rest_framework import status
 from rest_framework import viewsets
 from rest_framework import filters
 from .models import *
+from rest_framework .views import APIView       # As of 07May25 at 12:30 PM
+# from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter
+from django.db.models import Sum
+from rest_framework.decorators import action
+
 
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -474,9 +480,10 @@ class CityView(viewsets.ModelViewSet):
 
 
 # ===========Address==========
-class AddressView(viewsets.ModelViewSet):
-    queryset = Address.objects.all()
-    serializer_class = AddressSerializer
+# comment as of 29April25 at 11:24 AM
+# class AddressView(viewsets.ModelViewSet):
+#     queryset = Address.objects.all()
+#     serializer_class = AddressSerializer
 
 
 # ===========Period============
@@ -528,6 +535,12 @@ class CityView(viewsets.ModelViewSet):
 
 
 # ===========Address==========
+# class AddressView(viewsets.ModelViewSet):
+#     queryset = Address.objects.all()
+#     serializer_class = AddressSerializer
+
+# Added as of 28April25
+
 class AddressView(viewsets.ModelViewSet):
     queryset = Address.objects.all()
     serializer_class = AddressSerializer
@@ -604,3 +617,92 @@ class AdmissionView(viewsets.ModelViewSet):
     queryset = Admission.objects.all()
     serializer_class = AdmissionSerializer
     
+    
+# As of 05May25 at 01:00 PM
+
+class ClassPeriodView(viewsets.ModelViewSet):
+    queryset = ClassPeriod.objects.all()
+    serializer_class = ClassPeriodSerializer
+    
+    
+# As of 07May25 at 12:30 PM
+
+class FeeTypeView(viewsets.ModelViewSet):
+    queryset = FeeType.objects.all()
+    serializer_class = FeeTypeSerializer
+    
+    
+class FeeStructureView(viewsets.ModelViewSet):
+    queryset = FeeStructure.objects.all()
+    serializer_class = FeeStructureSerializer
+
+
+class FeeSubmitView(viewsets.ModelViewSet):
+    queryset = Fee.objects.all()
+    serializer_class = FeeSubmitSerializer
+    
+    
+    # added this code as of 13may25 at 03:45 PM
+    
+    @action(detail=False, methods=['get'], url_path='summary')
+    def fee_summary(self, request):
+        student_id = request.query_params.get('student_id')
+
+        if student_id:
+            students = Student.objects.filter(id=student_id)
+            if not students.exists():
+                return Response({"error": "Student not found"}, status=404)
+        else:
+            students = Student.objects.filter(fee__isnull=False).distinct()
+
+        response_data = []
+
+        for student in students:
+            student_data = {
+                "student_id": student.id,
+                "student_name": student.user.get_full_name(),
+                "fee_details": []
+            }
+
+            for fee_structure in FeeStructure.objects.all():
+                fee_type = fee_structure.fee_type
+                amount_to_be_paid = float(fee_structure.total_fee)
+
+                amount_paid = Fee.objects.filter(
+                    student=student,
+                    fee_structure=fee_structure,
+                    fee_type=fee_type
+                ).aggregate(total=Sum('amount_paid'))['total'] or 0.0
+
+                amount_due = round(amount_to_be_paid - float(amount_paid), 2)
+
+                latest_payment = Fee.objects.filter(
+                    student=student,
+                    fee_structure=fee_structure,
+                    fee_type=fee_type
+                ).order_by('-payment_date').first()
+
+                if latest_payment:
+                    payment_date = latest_payment.payment_date.strftime('%Y-%m-%d') 
+                    payment_mode = latest_payment.payment_mode
+                    receipt_number = str(latest_payment.receipt_number) 
+                else:
+                    payment_date = None
+                    payment_mode = None
+                    receipt_number = None
+
+                student_data["fee_details"].append({
+                    "fee_structure": f"{fee_structure.year_level} - {fee_structure.term}",
+                    "total_fee": amount_to_be_paid,
+                    "fee_type": fee_type.name,
+                    "amount_to_be_paid": amount_to_be_paid,
+                    "amount_paid": float(amount_paid),
+                    "amount_due": amount_due,
+                    "payment_date": payment_date,
+                    "payment_mode": payment_mode,
+                    "receipt_number": receipt_number
+                })
+
+            response_data.append(student_data)
+
+        return Response(response_data)

@@ -1,6 +1,7 @@
 from django.db import models
 from teacher.models import *
 from authentication.models import User
+from decimal import Decimal
 
 
 # Create your models here.
@@ -11,7 +12,7 @@ class Student(models.Model):
     date_of_birth = models.DateField(null=False)
     gender = models.CharField(max_length=50)
     enrolment_date = models.DateField(null=False)
-
+    
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name} {self.user.email}"
 

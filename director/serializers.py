@@ -3,6 +3,8 @@ from .models import *
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError
 from student.serializers import *
+# from authentication.serializers import UserSerializer
+from uuid import uuid4
 
 
 class YearLevelSerializer(serializers.ModelSerializer):
@@ -103,17 +105,48 @@ class CitySerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+# class AddressSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Address
+#         exclude = ["user"]
+
+#     def to_representation(self, instance):
+#         representation = super().to_representation(instance)
+#         representation["country"] = instance.country.name
+#         representation["state"] = instance.state.name
+#         representation["city"] = instance.city.name
+#         return representation
+
+# Added as of 28April25
+
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
-        exclude = ["user"]
+        fields = '__all__'
 
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        representation["country"] = instance.country.name
-        representation["state"] = instance.state.name
-        representation["city"] = instance.city.name
-        return representation
+    def validate(self, add):
+        user = add.get('user')
+        house_no = add.get('house_no')
+        area_code = add.get('area_code')
+        country = add.get('country')
+        state = add.get('state')
+        city = add.get('city')
+        address_line = add.get('address_line')
+
+        # Address exists
+        if Address.objects.filter(
+            user=user,
+            house_no=house_no,
+            area_code=area_code,
+            country=country,
+            state=state,
+            city=city,
+            address_line=address_line
+        ).exists():
+            raise serializers.ValidationError("Address already exists for the user.")
+
+        return add
+
 
 
 class SchoolYearSerializer(serializers.ModelSerializer):
@@ -265,3 +298,169 @@ class AdmissionSerializer(serializers.ModelSerializer):
         )
 
         return admission
+    
+    
+    # admission update here
+    
+    def update(self, instance, validated_data):
+        student_data = validated_data.pop("student", None)
+        guardian_data = validated_data.pop("guardian", None)
+
+        if student_data:
+            student_serializer = StudentSerializer(instance.student, data=student_data)
+            student_serializer.is_valid(raise_exception=True)
+            student_serializer.save()
+
+        if guardian_data:
+            guardian_serializer = GuardianSerializer(instance.guardian, data=guardian_data)
+            guardian_serializer.is_valid(raise_exception=True)
+            guardian_serializer.save()
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        return instance
+
+
+# As of 05May25 at 01:00 PM
+class ClassPeriodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassPeriod
+        fields = ['id','subject','teacher','term','start_time','end_time','classroom','name']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['start_time'] = instance.start_time.start_period_time.strftime('%I:%M %p')
+        representation['end_time'] = instance.end_time.end_period_time.strftime('%I:%M %p')
+        return representation
+    
+
+# As of 08may25 at 11:41 AM
+
+# class FeeSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Fee
+#         fields = '__all__'
+
+#     def validate_total_fee(self, value):
+#         if value <= 0:
+#             raise serializers.ValidationError("Total fee must be greater than zero.")
+#         return value
+
+#     def validate(self, data):
+#         # Check if term and year_level are provided
+#         if not data.get('term'):
+#             raise serializers.ValidationError({"term": "Term is required."})
+#         if not data.get('year_level'):
+#             raise serializers.ValidationError({"year_level": "Year level is required."})
+#         return data
+
+#     def create(self, validated_data):
+#         student = validated_data.get('student')
+#         banking_detail = validated_data.get('banking_detail')
+
+#         if banking_detail and student.user != banking_detail.user:
+#             raise serializers.ValidationError("Banking detail does not match student.")
+
+        # return super().create(validated_data)
+        
+
+# Fee submit serializer commented as of 12May25 at 02:44 PM
+# class FeeSerializer(serializers.ModelSerializer):
+#     student_id = serializers.IntegerField(write_only=True)
+#     account_no = serializers.IntegerField(write_only=True)
+#     term_id = serializers.IntegerField(write_only=True)
+#     year_level_id = serializers.IntegerField(write_only=True)
+#     amount_paid = serializers.DecimalField(max_digits=10, decimal_places=2)#,write_only=True)
+
+#     class Meta:
+#         model = Fee
+#         fields = [
+#             'student_id', 'account_no', 'term_id', 'year_level_id',
+#             'total_fee', 'amount_paid', 'payment_mode', 'remarks', 'receipt_number'
+#         ]
+#         read_only_fields = ['receipt_number']
+
+#     def create(self, validated_data):
+#         student_id = validated_data.pop('student_id')
+#         account_no = validated_data.pop('account_no')
+#         term_id = validated_data.pop('term_id')
+#         year_level_id = validated_data.pop('year_level_id')
+#         amount_paid = validated_data.pop('amount_paid')
+
+#         try:
+#             student = Student.objects.get(id=student_id)
+#         except Student.DoesNotExist:
+#             raise serializers.ValidationError({"student_id": "Student not found."})
+
+#         try:
+#             banking_detail = BankingDetail.objects.get(account_no=account_no)
+#         except BankingDetail.DoesNotExist:
+#             raise serializers.ValidationError({"account_no": "Banking detail not found."})
+
+#         if banking_detail.user != student.user:
+#             raise serializers.ValidationError("Banking detail not found for the student.")
+
+#         try:
+#             term = Term.objects.get(id=term_id)
+#         except Term.DoesNotExist:
+#             raise serializers.ValidationError({"term_id": "Term not found."})
+
+#         try:
+#             year_level = YearLevel.objects.get(id=year_level_id)
+#         except YearLevel.DoesNotExist:
+#             raise serializers.ValidationError({"year_level_id": "Year level not found."})
+
+#         receipt_number = str(uuid4())
+
+#         fee = Fee.objects.create(
+#             student=student,
+#             banking_detail=banking_detail,
+#             term=term,
+#             year_level=year_level,
+#             total_fee=validated_data['total_fee'],
+#             amount_paid=amount_paid,
+#             payment_mode=validated_data['payment_mode'],
+#             remarks=validated_data.get('remarks', ''),
+#             receipt_number=receipt_number
+#         )
+
+#         # Add balance_amount to context/response if needed
+#         fee.balance_amount = float(fee.total_fee) - float(amount_paid)
+#         return fee
+
+#     def to_representation(self, instance):
+#         data = super().to_representation(instance)
+#         data['student'] = f"{instance.student.user.first_name} {instance.student.user.last_name}"
+#         data['banking_detail'] = instance.banking_detail.account_no
+#         data['term'] = instance.term.term_number if instance.term else None
+#         data['year_level'] = instance.year_level.level_name if instance.year_level else None
+#         # data['amount_paid'] = instance.fee.amount_paid if instance.amount_paid else None
+#         # data['balance_amount'] = float(instance.total_fee) - float(self.amount_paid)
+#         data['amount_paid'] = float(instance.amount_paid) if instance.amount_paid is not None else 0.0
+#         data['balance_amount'] = float(instance.total_fee) - float(instance.amount_paid or 0)
+
+#         return data
+
+
+class FeeTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FeeType
+        fields = ['id', 'name', 'description']
+        
+        
+class FeeStructureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FeeStructure
+        fields = ['id', 'year_level', 'term', 'fee_type','total_fee']
+        
+
+class FeeSubmitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Fee
+        fields = [
+            'id', 'student', 'fee_structure', 'fee_type',
+            'amount_paid', 'payment_mode', 'remarks','receipt_number'
+        ]
+

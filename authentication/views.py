@@ -54,7 +54,7 @@ def UserView(request, pk=None):
         )
 
 
-@api_view(["POST"])
+@api_view(["POST"]) # not working
 @permission_classes([IsAuthenticated])
 def ChangePasswordView(request):
     current_password = request.data.get("current_password")
@@ -145,7 +145,7 @@ def LogOutView(request):
         return Response({"Error": "Invalid data"}, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(["POST"])
+@api_view(["POST"]) # not working
 def SendOtpView(request):
 
     email_serialzer = OtpSerializers(data=request.data)

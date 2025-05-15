@@ -16,6 +16,7 @@ class TeacherSerializer(serializers.ModelSerializer):
         model = Teacher
         fields = ['id', 'first_name', 'middle_name', 'last_name', 'password','email', 'phone_no', 'gender', 'adhaar_no', 'pan_no', 'qualification']
 
+
     def create(self, validated_data):
         user_data = {
             'first_name': validated_data.pop('first_name'),

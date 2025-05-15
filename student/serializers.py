@@ -9,6 +9,7 @@ from django.db import IntegrityError
 from django.core.exceptions import MultipleObjectsReturned
 
 from .models import Guardian
+from director.models import BankingDetail
 
 
 class GuardianTypeSerializer(serializers.ModelSerializer):
@@ -282,3 +283,24 @@ class GuardianSerializer(serializers.ModelSerializer):
         except Exception:
             raise serializers.ValidationError({"Message": "Somthing went wrong"})
         return instance
+
+
+
+# Fee Submission Serializer as of 07May25 at 12:34 PM
+
+class FeeSubmissionSerializer(serializers.Serializer):
+    account_no = serializers.IntegerField()
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = serializers.ChoiceField(choices=['cash', 'online', 'cheque'])
+
+    def validate_account_no(self, value):
+        if not BankingDetail.objects.filter(account_no=value).exists():
+            raise serializers.ValidationError("Invalid account number.")
+        return value
+
+# json for fee
+# {
+#   "account_no": 123456789012,
+#   "amount": "2000.00",
+#   "payment_method": "online"
+# }
