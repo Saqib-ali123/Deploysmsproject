@@ -10,49 +10,66 @@ from rest_framework_simplejwt.tokens import RefreshToken, BlacklistMixin
 from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.core.cache import cache
+from rest_framework.views import APIView
 
 
-@api_view(["GET", "POST", "PUT", "DELETE"])
-def UserView(request, pk=None):
-    if request.method == "GET":
+# @api_view(["GET", "POST", "PUT", "DELETE"])
+# def UserView(request, pk=None):
+#     if request.method == "GET":
 
-        if pk is not None:
-            user = get_object_or_404(User, id=pk)
-            serializer = UserSerializer(user)
-            return Response(serializer.data)
-        else:
-            users = User.objects.all()
-            serializer = UserSerializer(users, many=True)
-            return Response(serializer.data)
+#         if pk is not None:
+#             user = get_object_or_404(User, id=pk)
+#             serializer = UserSerializer(user)
+#             return Response(serializer.data)
+#         else:
+#             users = User.objects.all()
+#             serializer = UserSerializer(users, many=True)
+#             return Response(serializer.data)
 
-    elif request.method == "POST":
-        serializer = UserSerializer(data=request.data)
+#     elif request.method == "POST":
+#         serializer = UserSerializer(data=request.data)
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(
+#                 {"message": "User registered in  successfully"},
+#                 status=status.HTTP_201_CREATED,
+#             )
+
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#     elif request.method == "PUT":
+#         user = get_object_or_404(User, id=pk)
+#         serializer = UserSerializer(user, data=request.data, partial=True)
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(
+#                 {"message": "User updated successfully"}, status=status.HTTP_200_OK
+#             )
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#     elif request.method == "DELETE":
+#         user = get_object_or_404(User, id=pk)
+#         user.delete()
+#         return Response(
+#             {"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT
+#         )
+
+class UserView(APIView):
+    def post(self, request):
+        serializer = UserSerializer(data=request.data, context={'request': request})
+        # serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"message": "User registered in  successfully"},
-                status=status.HTTP_201_CREATED,
-            )
-
+            user = serializer.save()
+            return Response({
+                "message": "User created successfully.",
+                "user": {
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "email": user.email,
+                    "roles": [role.name for role in user.role.all()]
+                }
+            }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == "PUT":
-        user = get_object_or_404(User, id=pk)
-        serializer = UserSerializer(user, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"message": "User updated successfully"}, status=status.HTTP_200_OK
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == "DELETE":
-        user = get_object_or_404(User, id=pk)
-        user.delete()
-        return Response(
-            {"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT
-        )
-
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -82,7 +99,7 @@ def LoginView(request):
     if request.method == "POST":
         email = request.data.get("email")
         password = request.data.get("password")
-        role = request.data.get("role")
+        # role = request.data.get("role")
 
         Serializer_Data = LoginSerializers(data=request.data)
 
@@ -95,32 +112,27 @@ def LoginView(request):
                     {"Message": "Invalid Credentials"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            
+            refresh = RefreshToken.for_user(user)
+            access = str(refresh.access_token)
+            refresh_token = str(refresh)    
 
             user_role = user.role.all()
-            user_filter = user_role.filter(name=role).first()
-            if user_filter is None:
-                return Response(
-                    {"Message": "Invalid Role"}, status=status.HTTP_400_BAD_REQUEST
-                )
-
-            refresh = RefreshToken.for_user(user)
-            refresh["role"] = role
-
-            access = str(refresh.access_token)
-            refresh = str(refresh)
+            
+            role_names = [role.name for role in user_role]
 
             return Response(
                 {
-                    "Access Token ": access,
-                    "Refresh Token ": refresh,
-                    "Message": "User logged in Successfully",
+                    "Message": "User logged in successfully",
+                    "Access Token": access,
+                    "Refresh Token": refresh_token,
+                    "User ID": user.id,
+                    "Roles": role_names,
                 },
                 status=status.HTTP_200_OK,
             )
-
         else:
-            errors = Serializer_Data.errors
-            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(Serializer_Data.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["POST"])
