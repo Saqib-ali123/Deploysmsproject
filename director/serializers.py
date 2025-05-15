@@ -29,6 +29,12 @@ class ClassRoomTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClassRoomType
         fields = "__all__"
+        
+        
+class ClassPeriodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassPeriod
+        fields = "__all__"        
 
 
 class BankingDetailsSerializer(serializers.ModelSerializer):
@@ -124,6 +130,15 @@ class AddressSerializer(serializers.ModelSerializer):
         model = Address
         fields = '__all__'
 
+
+        # exclude = ["user"]
+
+    # def to_representation(self, instance):
+    #     representation = super().to_representation(instance)
+    #     representation["country"] = instance.country.name
+    #     representation["state"] = instance.state.name
+    #     representation["city"] = instance.city.name
+    #     return representation
     def validate(self, add):
         user = add.get('user')
         house_no = add.get('house_no')
@@ -160,7 +175,7 @@ class PeriodSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Period
-        fields = ["year", "name", "start_period_time", "end_period_time"]
+        fields = ["id","year", "name", "start_period_time", "end_period_time"]
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -268,33 +283,174 @@ class DirectorProfileSerializer(serializers.ModelSerializer):
         return instance
 
 
+# class AdmissionSerializer(serializers.ModelSerializer):
+#     student = StudentSerializer()
+#     guardian = GuardianSerializer()
+
+#     class Meta:
+#         model = Admission
+#         fields = "__all__"
+
+#     def create(self, validated_data):
+
+#         student_data = validated_data.pop("student")
+#         guardian_data = validated_data.pop("guardian")
+
+#         student = StudentSerializer(data=student_data,context={**self.context, "exclude_classes": True})
+#         if student.is_valid():
+#             student = student.save()
+#         else:
+#             raise serializers.ValidationError(student.errors)
+
+#         guardian = GuardianSerializer(data=guardian_data)
+#         if guardian.is_valid():
+#             guardian = guardian.save()
+#         else:
+#             raise serializers.ValidationError(guardian.errors)
+
+#         admission = Admission.objects.create(
+#             student=student, guardian=guardian, **validated_data
+#         )
+
+#         return admission
+# /////////////////correct////////////////////
+
+# class AdmissionSerializer(serializers.ModelSerializer):
+#     student = StudentSerializer()
+#     guardian = GuardianSerializer()
+
+#     class Meta:
+#         model = Admission
+#         fields = "__all__"
+
+#     def create(self, validated_data):
+#         student_data = validated_data.pop("student")
+#         guardian_data = validated_data.pop("guardian")
+
+#         # Extract and handle class assignments
+#         classes_data = student_data.pop("classes", [])
+
+#         # Handle student
+#         student_email = student_data.get("email")
+#         student = Student.objects.filter(user__email__iexact=student_email).first()
+#         if not student:
+#             student_serializer = StudentSerializer(data={**student_data, "classes": classes_data})
+#             student_serializer.is_valid(raise_exception=True)
+#             student = student_serializer.save()
+#         else:
+#             if classes_data:
+#                 student.classes.set(classes_data)
+
+#         # Handle guardian
+#         guardian_email = guardian_data.get("email")
+#         guardian = Guardian.objects.filter(user__email__iexact=guardian_email).first()
+#         if not guardian:
+#             guardian_serializer = GuardianSerializer(data=guardian_data)
+#             guardian_serializer.is_valid(raise_exception=True)
+#             guardian = guardian_serializer.save()
+
+#         # Create admission record
+#         admission = Admission.objects.create(
+#             student=student,
+#             guardian=guardian,
+#             **validated_data
+#         )
+
+#         return admission
+
+#     def to_representation(self, instance):
+#         representation = super().to_representation(instance)
+
+#         # Student representation
+#         student = instance.student
+#         student_user = student.user
+#         representation.update({
+#             "student_first_name": student_user.first_name,
+#             "student_middle_name": student_user.middle_name,
+#             "student_last_name": student_user.last_name,
+#             "student_email": student_user.email,
+#             "student_date_of_birth": student.date_of_birth,
+#             "student_gender": student.gender,
+#             "student_enrolment_date": student.enrolment_date,
+#             "student_classes": [cls.name for cls in student.classes.all()],
+#         })
+
+#         # Guardian representation
+#         guardian = instance.guardian
+#         guardian_user = guardian.user
+#         representation.update({
+#             "guardian_first_name": guardian_user.first_name,
+#             "guardian_middle_name": guardian_user.middle_name,
+#             "guardian_last_name": guardian_user.last_name,
+#             "guardian_email": guardian_user.email,
+#             "guardian_phone_no": guardian.phone_no,
+#         })
+
+#         # Use display names for foreign keys
+#         representation["year_level"] = instance.year_level.level_name if instance.year_level else None
+#         representation["school_year"] = instance.school_year.year_name if instance.school_year else None
+
+#         # Remove nested original fields
+#         representation.pop("student", None)
+#         representation.pop("guardian", None)
+
+#         return representation
+
+
+
 class AdmissionSerializer(serializers.ModelSerializer):
-    student = StudentSerializer()
-    guardian = GuardianSerializer()
+    student = StudentSerializer(write_only=True)
+    guardian = GuardianSerializer(write_only=True)
 
     class Meta:
         model = Admission
         fields = "__all__"
 
     def create(self, validated_data):
-
         student_data = validated_data.pop("student")
         guardian_data = validated_data.pop("guardian")
 
-        student = StudentSerializer(data=student_data)
-        if student.is_valid():
-            student = student.save()
-        else:
-            raise serializers.ValidationError(student.errors)
+        # Extract and remove classes from student data
+        classes_data = student_data.pop("classes", [])
 
-        guardian = GuardianSerializer(data=guardian_data)
-        if guardian.is_valid():
-            guardian = guardian.save()
-        else:
-            raise serializers.ValidationError(guardian.errors)
+        # Remove password if it's empty or not included
+        # student_data.pop("password", None)
+        # guardian_data.pop("password", None)
 
+        # --- Handle student ---
+        student_email = student_data.get("email")
+        student = Student.objects.filter(user__email__iexact=student_email).first()
+
+        if not student:
+            student_serializer = StudentSerializer(data={**student_data, "classes": classes_data})
+            student_serializer.is_valid(raise_exception=True)
+            student = student_serializer.save()
+        else:
+            if classes_data:
+                student.classes.set(classes_data)
+
+        # --- Handle guardian ---
+        guardian_email = guardian_data.get("email")
+        guardian = Guardian.objects.filter(user__email__iexact=guardian_email).first()
+
+        if not guardian:
+            guardian_serializer = GuardianSerializer(data=guardian_data)
+            guardian_serializer.is_valid(raise_exception=True)
+            guardian = guardian_serializer.save()
+
+        # --- Create admission record ---
         admission = Admission.objects.create(
-            student=student, guardian=guardian, **validated_data
+            student=student,
+            guardian=guardian,
+            **validated_data
+        )
+
+        # Link student to year level
+        from student.models import StudentYearLevel
+        StudentYearLevel.objects.get_or_create(
+            student=student,
+            level=admission.year_level,
+            year=admission.school_year
         )
 
         return admission
@@ -357,3 +513,41 @@ class FeeSubmitSerializer(serializers.ModelSerializer):
             'amount_paid', 'payment_mode', 'remarks','receipt_number'
         ]
 
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+
+        # --- Student Info ---
+        student = instance.student
+        student_user = student.user
+        representation.update({
+            "student_first_name": student_user.first_name,
+            "student_middle_name": student_user.middle_name,
+            "student_last_name": student_user.last_name,
+            "student_email": student_user.email,
+            "student_date_of_birth": student.date_of_birth,
+            "student_gender": student.gender,
+            "student_enrolment_date": student.enrolment_date,
+            "student_classes": [cls.name for cls in student.classes.all()],
+        })
+
+        # --- Guardian Info ---
+        guardian = instance.guardian
+        guardian_user = guardian.user
+        representation.update({
+            "guardian_first_name": guardian_user.first_name,
+            "guardian_middle_name": guardian_user.middle_name,
+            "guardian_last_name": guardian_user.last_name,
+            "guardian_email": guardian_user.email,
+            "guardian_phone_no": guardian.phone_no,
+        })
+
+        # --- Replace FK with readable names ---
+        representation["year_level"] = instance.year_level.level_name if instance.year_level else None
+        representation["school_year"] = instance.school_year.year_name if instance.school_year else None
+
+        # --- Clean up nested input ---
+        representation.pop("student", None)
+        representation.pop("guardian", None)
+
+        return representation

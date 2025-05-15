@@ -154,8 +154,10 @@ class Period(models.Model):
     end_period_time = models.TimeField()
 
     def __str__(self):
-        return f"{self.year} - {self.name}"
+        return f"{self.start_period_time} - {self.end_period_time} - {self.name}"
 
+    # def __str__(self):
+    #     return f"{self.year} - {self.name}"
     class Meta:
         verbose_name = "Period"
         verbose_name_plural = "Periods"
@@ -219,7 +221,7 @@ class ClassPeriod(models.Model):
     term = models.ForeignKey(Term, on_delete=models.DO_NOTHING)
     start_time = models.ForeignKey(
         Period, on_delete=models.DO_NOTHING, related_name="start_time"
-    )  # Doubt
+    )  
     end_time = models.ForeignKey(
         Period, on_delete=models.DO_NOTHING, related_name="end_time"
     )
@@ -308,3 +310,23 @@ class Fee(models.Model):
         verbose_name_plural = "Fee"
         db_table = "Fee"
 
+
+
+
+class OfficeStaff(models.Model):
+    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True)
+    phone_no = models.CharField(max_length=20)
+    gender = models.CharField(max_length=20)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+    date_joined = models.DateField(auto_now_add=True)
+    student = models.ManyToManyField(Student, blank=True, related_name="managed_by_staff")
+    teacher = models.ManyToManyField(Teacher, blank=True, related_name="managed_by_staff")
+    admissions = models.ManyToManyField(Admission, blank=True, related_name="handled_by_staff")
+
+    def __str__(self):
+        return f"{self.user.first_name} {self.user.last_name} ({self.department})"
+
+    class Meta:
+        verbose_name = "Office Staff"
+        verbose_name_plural = "Office Staff"
+        db_table = "OfficeStaff"

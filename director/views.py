@@ -480,7 +480,7 @@ class CityView(viewsets.ModelViewSet):
 
 
 # ===========Address==========
-# comment as of 29April25 at 11:24 AM
+
 # class AddressView(viewsets.ModelViewSet):
 #     queryset = Address.objects.all()
 #     serializer_class = AddressSerializer
@@ -552,6 +552,11 @@ class AddressView(viewsets.ModelViewSet):
 class PeriodView(viewsets.ModelViewSet):
     queryset = Period.objects.all()
     serializer_class = PeriodSerializer
+    
+    
+class ClassPeriodView(viewsets.ModelViewSet):
+    queryset = ClassPeriod.objects.all()
+    serializer_class = ClassPeriodSerializer    
 
 
 class DirectorView(viewsets.ModelViewSet):
