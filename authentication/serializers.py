@@ -183,7 +183,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     change_password = serializers.CharField(min_length=8)
     email=serializers.EmailField()
 
-
+# Changes as of 25April25 at 01:00 PM
 class LoginSerializers(serializers.Serializer):
     email=serializers.EmailField()
     password=serializers.CharField(max_length=12)
