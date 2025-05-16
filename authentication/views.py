@@ -71,15 +71,6 @@ class UserView(APIView):
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    elif request.method == "DELETE":
-        user = get_object_or_404(User, id=pk)
-        user.delete()
-        return Response(
-            {"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT
-        )
-
-
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def ChangePasswordView(request):
@@ -103,19 +94,16 @@ def ChangePasswordView(request):
     return Response(serialized.errors, status=400)
 
 
-@api_view(["POST"])     # changes done as of 25Aril25
+@api_view(["POST"])
 def LoginView(request):
     if request.method == "POST":
-
         email = request.data.get("email")
         password = request.data.get("password")
         # role = request.data.get("role")
 
         Serializer_Data = LoginSerializers(data=request.data)
 
-        if serializer.is_valid():
-            email = serializer.validated_data.get("email")
-            password = serializer.validated_data.get("password")
+        if Serializer_Data.is_valid():
 
             user = authenticate(email=email, password=password)
 
@@ -124,7 +112,6 @@ def LoginView(request):
                     {"Message": "Invalid Credentials"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
             
             refresh = RefreshToken.for_user(user)
             access = str(refresh.access_token)
@@ -173,7 +160,7 @@ def LogOutView(request):
         return Response({"Error": "Invalid data"}, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(["POST"]) # not working
+@api_view(["POST"])
 def SendOtpView(request):
 
     email_serialzer = OtpSerializers(data=request.data)
