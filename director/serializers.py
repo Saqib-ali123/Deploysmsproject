@@ -3,6 +3,8 @@ from .models import *
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError
 from student.serializers import *
+# from authentication.serializers import UserSerializer
+from uuid import uuid4
 
 
 class YearLevelSerializer(serializers.ModelSerializer):
@@ -109,10 +111,26 @@ class CitySerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+# class AddressSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Address
+#         exclude = ["user"]
+
+#     def to_representation(self, instance):
+#         representation = super().to_representation(instance)
+#         representation["country"] = instance.country.name
+#         representation["state"] = instance.state.name
+#         representation["city"] = instance.city.name
+#         return representation
+
+# Added as of 28April25
+
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
-        fields = "__all__"
+        fields = '__all__'
+
+
         # exclude = ["user"]
 
     # def to_representation(self, instance):
@@ -143,6 +161,7 @@ class AddressSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Address already exists for the user.")
 
         return add
+
 
 
 class SchoolYearSerializer(serializers.ModelSerializer):
@@ -435,6 +454,65 @@ class AdmissionSerializer(serializers.ModelSerializer):
         )
 
         return admission
+    
+    
+    # admission update here
+    
+    def update(self, instance, validated_data):
+        student_data = validated_data.pop("student", None)
+        guardian_data = validated_data.pop("guardian", None)
+
+        if student_data:
+            student_serializer = StudentSerializer(instance.student, data=student_data)
+            student_serializer.is_valid(raise_exception=True)
+            student_serializer.save()
+
+        if guardian_data:
+            guardian_serializer = GuardianSerializer(instance.guardian, data=guardian_data)
+            guardian_serializer.is_valid(raise_exception=True)
+            guardian_serializer.save()
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        return instance
+
+
+# As of 05May25 at 01:00 PM
+class ClassPeriodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassPeriod
+        fields = ['id','subject','teacher','term','start_time','end_time','classroom','name']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['start_time'] = instance.start_time.start_period_time.strftime('%I:%M %p')
+        representation['end_time'] = instance.end_time.end_period_time.strftime('%I:%M %p')
+        return representation
+    
+
+# As of 08may25 at 11:41 AM
+class FeeTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FeeType
+        fields = ['id', 'name', 'description']
+        
+        
+class FeeStructureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FeeStructure
+        fields = ['id', 'year_level', 'term', 'fee_type','total_fee']
+        
+
+class FeeSubmitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Fee
+        fields = [
+            'id', 'student', 'fee_structure', 'fee_type',
+            'amount_paid', 'payment_mode', 'remarks','receipt_number'
+        ]
+
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)

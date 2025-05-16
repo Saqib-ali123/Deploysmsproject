@@ -2,7 +2,6 @@ import uuid
 from django.db import models
 from authentication.models import *
 from student.models import *
-from razorpay import Client
 
 
 
@@ -94,8 +93,11 @@ class BankingDetail(models.Model):
     holder_name = models.CharField(max_length=255)
     user = models.OneToOneField("authentication.User", on_delete=models.DO_NOTHING)
 
-    def __str__(self):
-        return str(self.account_no)
+    # def __str__(self):
+    #     return str(self.account_no)
+    def __str__(self):      # added as of 06May25 at 02:23 PM
+        return f"{self.holder_name} ({self.account_no})"
+
 
     class Meta:
         verbose_name = "Banking Detail"
@@ -245,6 +247,8 @@ class Admission(models.Model):
     guardian = models.ForeignKey(Guardian,on_delete=models.DO_NOTHING)
     year_level = models.ForeignKey(YearLevel,on_delete=models.DO_NOTHING)
     school_year = models.ForeignKey(SchoolYear,on_delete=models.DO_NOTHING)
+    # total_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))  #Added as of 08May25
+    
 
     def __str__(self):
         return f"{self.student} - {self.admission_date}"
@@ -253,6 +257,58 @@ class Admission(models.Model):
         verbose_name = "Admission"
         verbose_name_plural = "Admissions"
         db_table = "Admission"
+
+
+# As of 12May25 at 11:15 AM
+class FeeType(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        verbose_name = "FeeType"
+        verbose_name_plural = "FeeType"
+        db_table = "FeeType"
+ 
+        
+ # As of 12May25 at 11:15 AM       
+class FeeStructure(models.Model):
+    year_level = models.ForeignKey(YearLevel, on_delete=models.CASCADE)
+    term = models.ForeignKey(Term, on_delete=models.CASCADE)
+    fee_type = models.ForeignKey(FeeType, on_delete=models.CASCADE)
+    total_fee = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.year_level} - {self.term} - {self.fee_type.name}"
+
+    class Meta:
+        verbose_name = "FeeStructure"
+        verbose_name_plural = "FeeStructures"
+        db_table = "FeeStructure"
+
+# # As of 08May25 at 11:38 AM
+class Fee(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    fee_structure = models.ForeignKey(FeeStructure, on_delete=models.SET_NULL, null=True, blank=True)
+    fee_type = models.ForeignKey(FeeType, on_delete=models.CASCADE)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    payment_date = models.DateField(auto_now_add=True)
+    payment_mode = models.CharField(
+        max_length=20,
+        choices=[('Cash', 'Cash'), ('Online', 'Online'), ('Cheque', 'Cheque')]
+    )
+    remarks = models.TextField(blank=True, null=True)
+    receipt_number = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+
+    def __str__(self):
+        return f"{self.student.user.first_name} - {self.fee_type.name} - {self.amount_paid} - {self.payment_date}"
+
+    class Meta:
+        verbose_name = "Fee"
+        verbose_name_plural = "Fee"
+        db_table = "Fee"
 
 
 
@@ -274,60 +330,3 @@ class OfficeStaff(models.Model):
         verbose_name = "Office Staff"
         verbose_name_plural = "Office Staff"
         db_table = "OfficeStaff"
-        
-        
-
-
-
-class FeeType(models.Model):
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True, null=True)
-
-    def _str_(self):
-        return self.name
-    
-    class Meta:
-        verbose_name = "FeeType"
-        verbose_name_plural = "FeeType"
-        db_table = "FeeType"
- 
-        
- # As of 12May25 at 11:15 AM       
-class FeeStructure(models.Model):
-    year_level = models.ForeignKey(YearLevel, on_delete=models.CASCADE)
-    term = models.ForeignKey(Term, on_delete=models.CASCADE)
-    fee_type = models.ForeignKey(FeeType, on_delete=models.CASCADE)
-    total_fee = models.DecimalField(max_digits=10, decimal_places=2)
-
-    def _str_(self):
-        return f"{self.year_level} - {self.term} - {self.fee_type.name}"
-
-    class Meta:
-        verbose_name = "FeeStructure"
-        verbose_name_plural = "FeeStructures"
-        db_table = "FeeStructure"
-
-# # As of 08May25 at 11:38 AM
-class Fee(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    fee_structure = models.ForeignKey(FeeStructure, on_delete=models.SET_NULL, null=True, blank=True)
-    fee_type = models.ForeignKey(FeeType, on_delete=models.CASCADE)
-    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    payment_date = models.DateField(auto_now_add=True)
-    payment_mode = models.CharField(
-        max_length=20,
-        choices=[('Cash', 'Cash'), ('Online', 'Online'), ('Cheque', 'Cheque')]
-    )
-    remarks = models.TextField(blank=True, null=True)
-    receipt_number = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
-    razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
-    razorpay_signature = models.CharField(max_length=200, blank=True, null=True)
-
-    def _str_(self):
-        return f"{self.student.user.first_name} - {self.fee_type.name} - {self.amount_paid} - {self.payment_date}"
-
-    class Meta:
-        verbose_name = "Fee"
-        verbose_name_plural = "Fee"
-        db_table = "Fee"        

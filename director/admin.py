@@ -17,5 +17,9 @@ admin.site.register(
         ClassPeriod,
         Role,
         Admission,
+        BankingDetail,
+        FeeType,
+        FeeStructure,
+        Fee,
     ]
 )
