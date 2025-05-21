@@ -301,6 +301,10 @@ class Fee(models.Model):
     )
     remarks = models.TextField(blank=True, null=True)
     receipt_number = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
+    razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
+    razorpay_signature = models.CharField(max_length=200, blank=True, null=True)
+
 
     def __str__(self):
         return f"{self.student.user.first_name} - {self.fee_type.name} - {self.amount_paid} - {self.payment_date}"
