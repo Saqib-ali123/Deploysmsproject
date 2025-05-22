@@ -14,6 +14,7 @@ from rest_framework.decorators import action
 
 
 
+
 @api_view(["GET", "POST", "PUT", "DELETE"])
 def YearLevelView(request, id=None):
     if request.method == "GET":
@@ -625,6 +626,21 @@ class AdmissionView(viewsets.ModelViewSet):
 class OfficeStaffView(viewsets.ModelViewSet):
     queryset=OfficeStaff.objects.all()
     serializer_class = OfficeStaffSerializer    
+    
+#  ***************************   
+class DocumentTypeView(viewsets.ModelViewSet):
+    queryset = DocumentType.objects.all()
+    serializer_class = DocumentTypeSerializer 
+    
+class DocumentView(viewsets.ModelViewSet):
+    queryset = Document.objects.all()
+    serializer_class = DocumentSerializer 
+    
+# **********************************    
+
+    
+    
+    
     
 # As of 05May25 at 01:00 PM
 
