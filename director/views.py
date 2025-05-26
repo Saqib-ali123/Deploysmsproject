@@ -641,12 +641,24 @@ class DocumentView(viewsets.ModelViewSet):
     
     
     
+# **************Assignment ClassPeriod for Student behalf of YearLevel(standard)****************   
     
 # As of 05May25 at 01:00 PM
 
 class ClassPeriodView(viewsets.ModelViewSet):
     queryset = ClassPeriod.objects.all()
     serializer_class = ClassPeriodSerializer
+    
+    @action(detail=False, methods=["post"], url_path="assign-to-yearlevel")
+    def assign_to_yearlevel(self, request):
+        serializer = ClassPeriodSerializer(data=request.data)
+        if serializer.is_valid():
+            result = serializer.save()
+            return Response({
+                "message": "ClassPeriods assigned successfully.",
+                "details": result
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
     
     
 # As of 07May25 at 12:30 PM
