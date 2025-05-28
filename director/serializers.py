@@ -785,20 +785,51 @@ class FeeTypeSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description']
         
         
+# commented as of 17May25 at 02:00 PM
+# class FeeStructureSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = FeeStructure
+#         fields = ['id', 'year_level', 'term', 'fee_type','total_fee']
+
+# Added this as of 17May25 at 02:00 PM to fetch names instead of ids
 class FeeStructureSerializer(serializers.ModelSerializer):
+    year_level = serializers.CharField(source='year_level.level_name')
+    term = serializers.CharField(source='term.term_number')
+    fee_type = serializers.CharField(source='fee_type.name')
+
     class Meta:
         model = FeeStructure
-        fields = ['id', 'year_level', 'term', 'fee_type','total_fee']
-        
+        fields = ['id', 'year_level', 'term', 'fee_type', 'total_fee']
 
+        
+# commented as of 17May25 at 02:00 PM
+# class FeeSubmitSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Fee
+#         fields = [
+#             'id', 'student', 'fee_structure', 'fee_type',
+#             'amount_paid', 'payment_mode', 'remarks','receipt_number'
+#         ]
+
+# Added this as of 17May25 at 02:00 PM to fetch names instead of ids
 class FeeSubmitSerializer(serializers.ModelSerializer):
+    student = serializers.SerializerMethodField()
+    fee_structure = serializers.SerializerMethodField()
+    fee_type = serializers.CharField(source='fee_type.name')
+
     class Meta:
         model = Fee
         fields = [
             'id', 'student', 'fee_structure', 'fee_type',
-            'amount_paid', 'payment_mode', 'remarks','receipt_number'
+            'amount_paid', 'payment_mode', 'remarks', 'receipt_number'
         ]
 
+
+    def get_fee_structure(self, obj):
+        if obj.fee_structure:
+            # return f"{obj.fee_structure.year_level.level_name} - {obj.fee_structure.term.term_number}"
+            return f"{obj.fee_structure.year_level.level_name}"
+        return None
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -962,3 +993,4 @@ class DocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
         fields  = "__all__"      
+
