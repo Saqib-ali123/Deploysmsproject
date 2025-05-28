@@ -622,6 +622,9 @@ class AdmissionView(viewsets.ModelViewSet):
     queryset = Admission.objects.all()
     serializer_class = AdmissionSerializer
     
+class OfficeStaffView(viewsets.ModelViewSet):
+    queryset=OfficeStaff.objects.all()
+    serializer_class = OfficeStaffSerializer    
     
 # As of 05May25 at 01:00 PM
 

@@ -163,7 +163,7 @@ from datetime import timedelta
 
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -229,3 +229,15 @@ EMAIL_USE_SSL = False
 EMAIL_HOST_USER = 'technohub344@gmail.com'
 EMAIL_HOST_PASSWORD = 'innjflfdusucaygz'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+
+
+
+
+# Razorpay credentials (get them from https://dashboard.razorpay.com/app/keys)
+
+RAZORPAY_KEY_ID = 'rzp_test_71sjXJLVYiRFI8'
+RAZORPAY_KEY_SECRET = 'HTh4tMZNOWgoGAtYhP8yMVse'
+RAZORPAY_WEBHOOK_SECRET = 'KLEcK25CqeD96@k'
+
