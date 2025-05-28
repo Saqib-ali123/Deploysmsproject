@@ -241,3 +241,21 @@ RAZORPAY_KEY_ID = 'rzp_test_71sjXJLVYiRFI8'
 RAZORPAY_KEY_SECRET = 'HTh4tMZNOWgoGAtYhP8yMVse'
 RAZORPAY_WEBHOOK_SECRET = 'KLEcK25CqeD96@k'
 
+
+
+LOGGING = {
+    'version': 1,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+        },
+    },
+}
+
+
