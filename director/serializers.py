@@ -823,51 +823,54 @@ class FeeSubmitSerializer(serializers.ModelSerializer):
             'id', 'student', 'fee_structure', 'fee_type',
             'amount_paid', 'payment_mode', 'remarks', 'receipt_number'
         ]
+        
+    def get_student(self, obj):
+        return str(obj.student)
 
 
-    def get_fee_structure(self, obj):
+    def get_fee_structure(self, obj):     # commented as of 28May25 at 02:00 PM
         if obj.fee_structure:
             # return f"{obj.fee_structure.year_level.level_name} - {obj.fee_structure.term.term_number}"
             return f"{obj.fee_structure.year_level.level_name}"
         return None
 
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
+    # def to_representation(self, instance):     # commented as of 28May25 at 02:00 PM
+    #     representation = super().to_representation(instance)
 
-        # --- Student Info ---
-        student = instance.student
-        student_user = student.user
-        representation.update({
-            "student_first_name": student_user.first_name,
-            "student_middle_name": student_user.middle_name,
-            "student_last_name": student_user.last_name,
-            "student_email": student_user.email,
-            "student_date_of_birth": student.date_of_birth,
-            "student_gender": student.gender,
-            "student_enrolment_date": student.enrolment_date,
-            "student_classes": [cls.name for cls in student.classes.all()],
-        })
+    #     # --- Student Info ---
+    #     student = instance.student
+    #     student_user = student.user
+    #     representation.update({
+    #         "student_first_name": student_user.first_name,
+    #         "student_middle_name": student_user.middle_name,
+    #         "student_last_name": student_user.last_name,
+    #         "student_email": student_user.email,
+    #         "student_date_of_birth": student.date_of_birth,
+    #         "student_gender": student.gender,
+    #         "student_enrolment_date": student.enrolment_date,
+    #         "student_classes": [cls.name for cls in student.classes.all()],
+    #     })
 
-        # --- Guardian Info ---
-        guardian = instance.guardian
-        guardian_user = guardian.user
-        representation.update({
-            "guardian_first_name": guardian_user.first_name,
-            "guardian_middle_name": guardian_user.middle_name,
-            "guardian_last_name": guardian_user.last_name,
-            "guardian_email": guardian_user.email,
-            "guardian_phone_no": guardian.phone_no,
-        })
+    #     # --- Guardian Info ---    # commented as of 28May25 at 02:00 PM
+    #     guardian = instance.guardian
+    #     guardian_user = guardian.user
+    #     representation.update({
+    #         "guardian_first_name": guardian_user.first_name,
+    #         "guardian_middle_name": guardian_user.middle_name,
+    #         "guardian_last_name": guardian_user.last_name,
+    #         "guardian_email": guardian_user.email,
+    #         "guardian_phone_no": guardian.phone_no,
+    #     })
 
-        # --- Replace FK with readable names ---
-        representation["year_level"] = instance.year_level.level_name if instance.year_level else None
-        representation["school_year"] = instance.school_year.year_name if instance.school_year else None
+    #     # --- Replace FK with readable names ---       # commented as of 28May25 at 02:00 PM
+    #     representation["year_level"] = instance.year_level.level_name if instance.year_level else None
+    #     representation["school_year"] = instance.school_year.year_name if instance.school_year else None
 
-        # --- Clean up nested input ---
-        representation.pop("student", None)
-        representation.pop("guardian", None)
+    #     # --- Clean up nested input ---        # commented as of 28May25 at 02:00 PM
+    #     representation.pop("student", None)
+    #     representation.pop("guardian", None)
 
-        return representation
+    #     return representation
 
 
 
