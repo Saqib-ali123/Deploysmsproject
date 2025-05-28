@@ -9,10 +9,11 @@ from decimal import Decimal
 
 class Student(models.Model):
     user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True)
-    date_of_birth = models.DateField(null=False)
+    date_of_birth = models.DateField(null=True,blank=True )
     gender = models.CharField(max_length=50)
-    enrolment_date = models.DateField(null=False)
-    
+
+    enrolment_date = models.DateField(null=True,blank=True )
+
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name} {self.user.email}"
 

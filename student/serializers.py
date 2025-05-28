@@ -20,9 +20,9 @@ class GuardianTypeSerializer(serializers.ModelSerializer):
 
 class StudentSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(max_length=100, write_only=True)
-    middle_name = serializers.CharField(max_length=100, write_only=True, required=False)
+    middle_name = serializers.CharField(max_length=100, write_only=True, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=100, write_only=True)
-    password = serializers.CharField(max_length=100, write_only=True)
+    password = serializers.CharField(max_length=100, write_only=True,required=False)
     email = serializers.EmailField(write_only=True)
     classes = serializers.PrimaryKeyRelatedField(
         queryset=ClassPeriod.objects.all(), many=True, required=False, allow_null=True
@@ -33,7 +33,7 @@ class StudentSerializer(serializers.ModelSerializer):
             "first_name": validated_data.pop("first_name"),
             "middle_name": validated_data.pop("middle_name", None),
             "last_name": validated_data.pop("last_name"),
-            "password": validated_data.pop("password"),
+            "password": validated_data.pop("password",None),
             "email": validated_data.pop("email"),
         }
         classes_data = validated_data.pop("classes", [])
@@ -123,6 +123,9 @@ class StudentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Student
         exclude = ["user"]
+    #     extra_kwargs = {
+    # 'password': {'write_only': True},
+# }
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -143,7 +146,7 @@ class GuardianSerializer(serializers.ModelSerializer):
     )
     last_name = serializers.CharField(write_only=True, max_length=255)
     email = serializers.EmailField(write_only=True)
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True,required=False)
     students = StudentListSerilaizer(many=True, required=False)
 
     class Meta:
@@ -238,7 +241,7 @@ class GuardianSerializer(serializers.ModelSerializer):
             "last_name": instance.user.last_name,
             "email": instance.user.email,
             "phone_no": representation.pop("phone_no", ""),
-            "students": [],
+            # "students": [],
         }
         related_student_gaurdian = instance.studentguardian_set.all()
         for student_gaurdian in related_student_gaurdian:
@@ -304,3 +307,15 @@ class FeeSubmissionSerializer(serializers.Serializer):
 #   "amount": "2000.00",
 #   "payment_method": "online"
 # }
+
+    
+    class Meta:
+        model = Guardian
+        exclude = ["user"]
+    #     extra_kwargs = {
+    # 'password': {'write_only': True},
+        # }    
+        
+        
+        
+        
