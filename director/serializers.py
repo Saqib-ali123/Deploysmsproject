@@ -840,6 +840,14 @@ class FeeSubmitSerializer(serializers.ModelSerializer):
 
 
 
+class RazorpayPaymentInitiateSerializer(serializers.Serializer):
+    student_id = serializers.IntegerField()
+    fee_structure_id = serializers.IntegerField()
+    fee_type_id = serializers.IntegerField()
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+
+
 # ********************OfficeStaffSerializer profile*******************************
 class OfficeStaffSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(max_length=100, write_only=True)
