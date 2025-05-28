@@ -11,6 +11,12 @@ from rest_framework .views import APIView       # As of 07May25 at 12:30 PM
 from rest_framework.filters import SearchFilter
 from django.db.models import Sum
 from rest_framework.decorators import action
+import razorpay
+from django.conf import settings
+from django.shortcuts import get_object_or_404
+
+client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
+
 
 
 
@@ -622,12 +628,42 @@ class AdmissionView(viewsets.ModelViewSet):
     queryset = Admission.objects.all()
     serializer_class = AdmissionSerializer
     
+class OfficeStaffView(viewsets.ModelViewSet):
+    queryset=OfficeStaff.objects.all()
+    serializer_class = OfficeStaffSerializer    
+    
+#  ***************************   
+class DocumentTypeView(viewsets.ModelViewSet):
+    queryset = DocumentType.objects.all()
+    serializer_class = DocumentTypeSerializer 
+    
+class DocumentView(viewsets.ModelViewSet):
+    queryset = Document.objects.all()
+    serializer_class = DocumentSerializer 
+    
+# **********************************    
+
+    
+    
+    
+# **************Assignment ClassPeriod for Student behalf of YearLevel(standard)****************   
     
 # As of 05May25 at 01:00 PM
 
 class ClassPeriodView(viewsets.ModelViewSet):
     queryset = ClassPeriod.objects.all()
     serializer_class = ClassPeriodSerializer
+    
+    @action(detail=False, methods=["post"], url_path="assign-to-yearlevel")
+    def assign_to_yearlevel(self, request):
+        serializer = ClassPeriodSerializer(data=request.data)
+        if serializer.is_valid():
+            result = serializer.save()
+            return Response({
+                "message": "ClassPeriods assigned successfully.",
+                "details": result
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
     
     
 # As of 07May25 at 12:30 PM
@@ -711,3 +747,73 @@ class FeeSubmitView(viewsets.ModelViewSet):
             response_data.append(student_data)
 
         return Response(response_data)
+    
+    
+    # 🔹 Razorpay Initiate Payment
+    @action(detail=False, methods=['post'], url_path='initiate-payment')
+    def initiate_payment(self, request):
+        serializer = RazorpayPaymentInitiateSerializer(data=request.data)
+        if serializer.is_valid():
+            data = serializer.validated_data
+
+            # Safely fetch the objects, return 404 if not found
+            student = get_object_or_404(Student, id=data['student_id'])
+            fee_structure = get_object_or_404(FeeStructure, id=data['fee_structure_id'])
+            fee_type = get_object_or_404(FeeType, id=data['fee_type_id'])
+
+            try:
+                # Convert amount to paise (minor currency unit)
+                amount_paise = int(data['amount'] * 100)
+                receipt_id = f"receipt_{student.id}_{fee_type.id}"
+
+                # Create Razorpay order
+                order = client.order.create({
+                    "amount": amount_paise,
+                    "currency": "INR",
+                    "receipt": receipt_id,
+                    "payment_capture": 1
+                })
+
+                # Save the fee record
+                Fee.objects.create(
+                    student=student,
+                    fee_structure=fee_structure,
+                    fee_type=fee_type,
+                    amount_paid=data['amount'],
+                    payment_mode='Online',
+                    razorpay_order_id=order['id']
+                )
+
+                return Response({
+                    "order_id": order['id'],
+                    "amount": data['amount'],
+                    "currency": "INR",
+                    "student_id": student.id,
+                    "razorpay_key": settings.RAZORPAY_API_KEY,
+                    "receipt": receipt_id
+                })
+
+            except Exception as e:
+                return Response({"error": f"Payment initiation failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # 🔹 Razorpay Verify Payment
+    @action(detail=False, methods=['post'], url_path='verify-payment')
+    def verify_payment(self, request):
+        data = request.data
+        try:
+            client.utility.verify_payment_signature({
+                'razorpay_order_id': data['razorpay_order_id'],
+                'razorpay_payment_id': data['razorpay_payment_id'],
+                'razorpay_signature': data['razorpay_signature']
+            })
+
+            fee = Fee.objects.get(razorpay_order_id=data['razorpay_order_id'])
+            fee.razorpay_payment_id = data['razorpay_payment_id']
+            fee.razorpay_signature = data['razorpay_signature']
+            fee.save()
+
+            return Response({"message": "Payment verified successfully."})
+        except razorpay.errors.SignatureVerificationError:
+            return Response({"message": "Payment verification failed."}, status=400)

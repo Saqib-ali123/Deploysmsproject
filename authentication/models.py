@@ -55,6 +55,7 @@ class User(AbstractUser, PermissionsMixin):
     last_name = models.CharField(max_length=100, null=False)
     password = models.CharField(max_length=100, null=False)
     email = models.EmailField(unique=True, null=False)
+    user_profile = models.FileField(upload_to='profile_pics/')
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
 

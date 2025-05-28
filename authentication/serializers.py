@@ -74,6 +74,108 @@ from django.contrib.auth.password_validation import validate_password
 
 
 
+# class UserSerializer(serializers.ModelSerializer):
+#     role = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), write_only=True)
+#     year_level = serializers.PrimaryKeyRelatedField(queryset=YearLevel.objects.all(), write_only=True, required=False)
+#     school_year = serializers.PrimaryKeyRelatedField(queryset=SchoolYear.objects.all(), write_only=True, required=False)
+#     gender = serializers.CharField(write_only=True, required=False)
+#     date_of_birth = serializers.DateField(write_only=True, required=False)
+#     enrolment_date = serializers.DateField(write_only=True, required=False)
+
+#     class Meta:
+#         model = User
+#         fields = [
+#             "first_name", "last_name", "email", "password", "role",
+#             "year_level", "school_year", "gender", "date_of_birth", "enrolment_date"
+#         ]
+#         extra_kwargs = {
+#             'password': {'write_only': True},
+#         }
+
+#     def validate(self, attrs):
+#         validate_password(attrs["password"])
+
+#         role = attrs.get("role")
+#         if not role:
+#             raise ValidationError({"role": "This field is required."})
+
+#         role_name = role.name.lower()
+
+#         request = self.context.get("request", None)
+#         if request is None or not hasattr(request, "user"):
+#             raise ValidationError({"error": "Request context is missing or invalid."})
+
+#         user = request.user
+#         if not user.is_authenticated:
+#             raise ValidationError({"error": "Authentication required to create users."})
+
+#         user_roles = user.role.all()
+#         user_role = user_roles[0].name.lower() if user_roles else None
+
+#         if user_role not in [ "director", "office staff"]:
+#             raise ValidationError({"error": "You are not allowed to create users."})
+
+#         if user_role == "office staff" and role_name not in ["student", "guardian"]:
+#             raise ValidationError({"error": "Office staff can only register students and guardians."})
+
+#         if role_name == "student":
+#             required_fields = ["year_level", "school_year", "gender", "date_of_birth", "enrolment_date"]
+#             missing_fields = [field for field in required_fields if not attrs.get(field)]
+#             if missing_fields:
+#                 raise ValidationError({field: "This field is required for students." for field in missing_fields})
+
+#         return attrs
+
+
+#     def create(self, validated_data):
+#         role = validated_data.pop("role")
+#         year_level = validated_data.pop("year_level", None)
+#         school_year = validated_data.pop("school_year", None)
+#         gender = validated_data.pop("gender", None)
+#         date_of_birth = validated_data.pop("date_of_birth", None)
+#         enrolment_date = validated_data.pop("enrolment_date", None)
+
+#         # Create user
+#         user = User.objects.create_user(
+#             first_name=validated_data["first_name"],
+#             last_name=validated_data["last_name"],
+#             email=validated_data["email"],
+#             password=validated_data["password"],
+#         )
+#         user.role.set([role])
+
+#         role_name = role.name.lower()
+#         student = None
+
+#         # Create role-specific profile
+#         if role_name == "student":
+#             student = Student.objects.create(
+#                 user=user,
+#                 gender=gender,
+#                 date_of_birth=date_of_birth,
+#                 enrolment_date=enrolment_date
+#             )
+#         elif role_name == "teacher":
+#             Teacher.objects.create(user=user)
+#         elif role_name == "director":
+#             Director.objects.create(user=user)
+#         elif role_name == "guardian":
+#             Guardian.objects.create(user=user)
+#         elif role_name == "office staff":
+#             OfficeStaff.objects.create(user=user)
+
+#         # Link student to year level
+#         if student:
+#             StudentYearLevel.objects.create(
+#                 student=student,
+#                 level=year_level,
+#                 year=school_year
+#             )
+
+#         return user
+
+# ********************user profile*************
+
 class UserSerializer(serializers.ModelSerializer):
     role = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all(), write_only=True)
     year_level = serializers.PrimaryKeyRelatedField(queryset=YearLevel.objects.all(), write_only=True, required=False)
@@ -81,12 +183,14 @@ class UserSerializer(serializers.ModelSerializer):
     gender = serializers.CharField(write_only=True, required=False)
     date_of_birth = serializers.DateField(write_only=True, required=False)
     enrolment_date = serializers.DateField(write_only=True, required=False)
+    user_profile = serializers.FileField(write_only=True, required=False)
 
     class Meta:
         model = User
         fields = [
             "first_name", "last_name", "email", "password", "role",
-            "year_level", "school_year", "gender", "date_of_birth", "enrolment_date"
+            "year_level", "school_year", "gender", "date_of_birth",
+            "enrolment_date", "user_profile"
         ]
         extra_kwargs = {
             'password': {'write_only': True},
@@ -112,7 +216,7 @@ class UserSerializer(serializers.ModelSerializer):
         user_roles = user.role.all()
         user_role = user_roles[0].name.lower() if user_roles else None
 
-        if user_role not in ["admin", "director", "office staff"]:
+        if user_role not in ["director", "office staff"]:
             raise ValidationError({"error": "You are not allowed to create users."})
 
         if user_role == "office staff" and role_name not in ["student", "guardian"]:
@@ -126,7 +230,6 @@ class UserSerializer(serializers.ModelSerializer):
 
         return attrs
 
-
     def create(self, validated_data):
         role = validated_data.pop("role")
         year_level = validated_data.pop("year_level", None)
@@ -134,20 +237,24 @@ class UserSerializer(serializers.ModelSerializer):
         gender = validated_data.pop("gender", None)
         date_of_birth = validated_data.pop("date_of_birth", None)
         enrolment_date = validated_data.pop("enrolment_date", None)
+        user_profile = validated_data.pop("user_profile", None)
 
-        # Create user
         user = User.objects.create_user(
             first_name=validated_data["first_name"],
             last_name=validated_data["last_name"],
             email=validated_data["email"],
             password=validated_data["password"],
         )
+
+        if user_profile:
+            user.user_profile = user_profile
+            user.save()
+
         user.role.set([role])
 
         role_name = role.name.lower()
         student = None
 
-        # Create role-specific profile
         if role_name == "student":
             student = Student.objects.create(
                 user=user,
@@ -164,7 +271,6 @@ class UserSerializer(serializers.ModelSerializer):
         elif role_name == "office staff":
             OfficeStaff.objects.create(user=user)
 
-        # Link student to year level
         if student:
             StudentYearLevel.objects.create(
                 student=student,
@@ -173,6 +279,7 @@ class UserSerializer(serializers.ModelSerializer):
             )
 
         return user
+
 
 
 

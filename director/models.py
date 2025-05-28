@@ -1,7 +1,9 @@
+import uuid
 from django.db import models
 from authentication.models import *
 from student.models import *
-import uuid
+from .utils import Document_folder  
+
 
 
 
@@ -301,6 +303,10 @@ class Fee(models.Model):
     )
     remarks = models.TextField(blank=True, null=True)
     receipt_number = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
+    razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
+    razorpay_signature = models.CharField(max_length=200, blank=True, null=True)
+
 
     def __str__(self):
         return f"{self.student.user.first_name} - {self.fee_type.name} - {self.amount_paid} - {self.payment_date}"
@@ -330,3 +336,36 @@ class OfficeStaff(models.Model):
         verbose_name = "Office Staff"
         verbose_name_plural = "Office Staff"
         db_table = "OfficeStaff"
+        
+        
+
+class DocumentType(models.Model):
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        db_table = "DocumentType"
+        
+        
+
+class Document(models.Model):
+    document_type = models.ForeignKey(DocumentType, on_delete=models.CASCADE)
+    file = models.FileField(upload_to= Document_folder)
+    # file = models.FileField(upload_to='Document_folder/')
+    
+    student = models.ForeignKey(Student, on_delete=models.SET_NULL, null=True, blank=True)
+    teacher = models.ForeignKey("teacher.Teacher", on_delete=models.SET_NULL, null=True, blank=True)
+    guardian = models.ForeignKey(Guardian, on_delete=models.SET_NULL, null=True, blank=True)
+    office_staff = models.ForeignKey(OfficeStaff, on_delete=models.SET_NULL, null=True, blank=True)
+
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        entity = self.student or self.teacher or self.guardian or self.office_staff
+        return f"{self.document_type.name} - {entity}"
+
+    class Meta:
+        db_table = "Document"
+        
