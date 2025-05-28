@@ -2,7 +2,9 @@ from rest_framework import serializers
 
 from authentication.models import User
 from director.models import Role, ClassPeriod
-from .models import GuardianType, Student, StudentGuardian
+from .models import GuardianType, Student, StudentGuardian,StudentYearLevel
+from director.models import ClassPeriod, YearLevel
+
 
 
 from django.db import IntegrityError
@@ -374,33 +376,30 @@ class GuardianSerializer(serializers.ModelSerializer):
 
 
 
-# Fee Submission Serializer as of 07May25 at 12:34 PM
+# # Fee Submission Serializer as of 07May25 at 12:34 PM
 
-class FeeSubmissionSerializer(serializers.Serializer):
-    account_no = serializers.IntegerField()
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
-    payment_method = serializers.ChoiceField(choices=['cash', 'online', 'cheque'])
+# class FeeSubmissionSerializer(serializers.Serializer):
+#     account_no = serializers.IntegerField()
+#     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+#     payment_method = serializers.ChoiceField(choices=['cash', 'online', 'cheque'])
 
-    def validate_account_no(self, value):
-        if not BankingDetail.objects.filter(account_no=value).exists():
-            raise serializers.ValidationError("Invalid account number.")
-        return value
+#     def validate_account_no(self, value):
+#         if not BankingDetail.objects.filter(account_no=value).exists():
+#             raise serializers.ValidationError("Invalid account number.")
+#         return value
 
-# json for fee
-# {
-#   "account_no": 123456789012,
-#   "amount": "2000.00",
-#   "payment_method": "online"
-# }
+# # json for fee
+# # {
+# #   "account_no": 123456789012,
+# #   "amount": "2000.00",
+# #   "payment_method": "online"
+# # }
 
     
-    class Meta:
-        model = Guardian
-        exclude = ["user"]
-    #     extra_kwargs = {
-    # 'password': {'write_only': True},
-        # }    
-        
-        
-        
+#     class Meta:
+#         model = Guardian
+#         exclude = ["user"]
+#     #     extra_kwargs = {
+#     # 'password': {'write_only': True},
+#         # }    
         

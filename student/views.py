@@ -186,7 +186,6 @@ class GuardianProfileView(viewsets.ModelViewSet):
             except Exception as e:
                 return Response ({"error": "Deletion unsuccessful: Error deleting user"})
             
-
-
-
-    
+            
+            
+            
