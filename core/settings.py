@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "director",
     "teacher",
     "student",
+    'attendance',
     'corsheaders',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
