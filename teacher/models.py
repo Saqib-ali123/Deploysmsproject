@@ -10,3 +10,7 @@ class Teacher(models.Model):
     adhaar_no = models.BigIntegerField()
     pan_no = models.BigIntegerField()
     qualification = models.CharField(max_length=250)
+    
+    def __str__(self):
+        return self.user.first_name
+    
