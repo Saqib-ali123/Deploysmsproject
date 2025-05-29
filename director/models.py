@@ -150,7 +150,7 @@ class Period(models.Model):
     end_period_time = models.TimeField()
 
     def __str__(self):
-        return f"{self.year} - {self.name}"
+        return f"{self.start_period_time} - {self.end_period_time} - {self.name}"
 
     class Meta:
         verbose_name = "Period"
