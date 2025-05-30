@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
+    # 'django_filters',
 ]
 
 MIDDLEWARE = [
@@ -100,7 +101,10 @@ DATABASES = {
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
-    ]
+    ],
+    # 'DEFAULT_FILTER_BACKENDS': [
+    #     'django_filters.rest_framework.DjangoFilterBackend'
+    # ],
 }
 
 
@@ -160,7 +164,7 @@ from datetime import timedelta
 
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -211,9 +215,51 @@ import os
 
 load_dotenv()
 
-EMAIL_HOST='smtp.gmail.com'
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=str(os.getenv("EMAIL"))
-EMAIL_HOST_PASSWORD=str(os.getenv("PASSKEY"))
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# EMAIL_HOST='smtp.gmail.com'
+# EMAIL_PORT=587
+# EMAIL_USE_TLS=True
+# EMAIL_HOST_USER=str(os.getenv("EMAIL"))
+# EMAIL_HOST_PASSWORD=str(os.getenv("PASSKEY"))
+# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587  
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = 'technohub344@gmail.com'
+EMAIL_HOST_PASSWORD = 'innjflfdusucaygz'
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+
+
+
+
+# Razorpay credentials (get them from https://dashboard.razorpay.com/app/keys)
+
+RAZORPAY_API_KEY = 'rzp_test_71sjXJLVYiRFI8'
+RAZORPAY_API_KEY_SECRET = 'HTh4tMZNOWgoGAtYhP8yMVse'
+RAZORPAY_WEBHOOK_SECRET = 'KLEcK25CqeD96@k'
+# RAZORPAY_KEY_ID = 'rzp_test_71sjXJLVYiRFI8'
+# RAZORPAY_KEY_SECRET = 'HTh4tMZNOWgoGAtYhP8yMVse'
+# RAZORPAY_WEBHOOK_SECRET = 'KLEcK25CqeD96@k'
+
+
+
+LOGGING = {
+    'version': 1,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+        },
+    },
+}
+
+
