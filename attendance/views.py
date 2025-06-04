@@ -17,9 +17,9 @@ class StudentAttendanceViewSet(ModelViewSet):
 
 class AttendanceReportViewSet(ReadOnlyModelViewSet):
     serializer_class = StudentAttendanceSerializer
-    
+
     def get_queryset(self):
-        queryset = StudentAttendance.objects.select_related('student__level', 'period')
+        queryset = StudentAttendance.objects.select_related('student__level', 'session_id')
         class_name = self.request.query_params.get('class')
         month = self.request.query_params.get('month')
         year = self.request.query_params.get('year')
@@ -31,20 +31,24 @@ class AttendanceReportViewSet(ReadOnlyModelViewSet):
             try:
                 month = int(month)
                 year = int(year)
-                queryset = queryset.filter(period__date__month=month, period__date__year=year)
+                queryset = queryset.filter(
+                    session_id__date__month=month,
+                    session_id__date__year=year
+                )
             except ValueError:
                 return StudentAttendance.objects.none()
 
-        return queryset.order_by('student', 'period__date')
+        return queryset.order_by('student', 'session_id__date')
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
-        
+
         student_attendance_map = {}
+
         for record in queryset:
             student_id = record.student.id
             student_name = str(record.student)
-            date_str = date_format(record.period.date, "j/n/y")
+            date_str = date_format(record.session_id.date, "j/n/y")
 
             if student_id not in student_attendance_map:
                 student_attendance_map[student_id] = {"Student name": student_name}
