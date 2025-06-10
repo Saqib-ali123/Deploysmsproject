@@ -376,95 +376,175 @@ def ClassRoomTypeView(request, pk=None):
             return Response({"Message": "Data not found"}, status.HTTP_404_NOT_FOUND)
 
 
+# @api_view(["GET", "POST", "PUT", "DELETE"])
+# def RoleView(request, pk=None):
+#     if request.method == "GET":
+#         if pk is not None:
+#             try:
+#                 role = Role.objects.get(pk=pk)
+#                 serialize_Data = RoleSerializer(role, many=False)
+#                 return Response(serialize_Data.data, status=status.HTTP_200_OK)
+
+#             except Role.DoesNotExist:
+#                 return Response(
+#                     {"message": "Role not found"}, status=status.HTTP_404_NOT_FOUND
+#                 )
+
+#         else:
+#             roles = Role.objects.all()
+#             serializerData = RoleSerializer(roles, many=True)
+#             return Response(serializerData.data, status=status.HTTP_200_OK)
+
+#     elif request.method == "POST":
+#         json_data = request.data
+
+#         # Here we are converting the entered role name to lowercase
+#         role = json_data.get("name", "").lower()
+
+#         print(role)
+#         json_data["name"] = role
+
+#         # Here we are checking whether entered role already exist or not
+#         role = Role.objects.filter(name__iexact=role)
+
+#         if role.exists():
+#             return Response(
+#                 {"message": "Role already exists"}, status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         serializer = RoleSerializer(data=json_data)
+
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(
+#                 {"message": "New Role added Successfully"},
+#                 status=status.HTTP_201_CREATED,
+#             )
+
+#         return Response({"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST)
+
+#     elif request.method == "PUT":
+#         try:
+#             role = Role.objects.get(pk=pk)
+
+#             if request.data.get("name", None) is None:
+#                 return Response(
+#                     {"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST
+#                 )
+
+#             request.data["name"] = request.data["name"].lower()
+
+#             updated_Role = RoleSerializer(instance=role, data=request.data)
+
+#             if updated_Role.is_valid():
+#                 updated_Role.save()
+#                 return Response(
+#                     {"message": "Role updated Successfully"},
+#                     status=status.HTTP_201_CREATED,
+#                 )
+
+#             return Response(
+#                 {"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         except Role.DoesNotExist:
+#             return Response(
+#                 {"message": "Role ID not Found"}, status=status.HTTP_404_NOT_FOUND
+#             )
+
+#     elif request.method == "DELETE":
+#         try:
+#             role = Role.objects.get(pk=pk)
+#             role.delete()
+#             return Response(
+#                 {"message": "Role deleted Successfuly"},
+#                 status=status.HTTP_204_NO_CONTENT,
+#             )
+
+#         except Role.DoesNotExist:
+#             return Response(
+#                 {"message": "Role not Found"}, status=status.HTTP_404_NOT_FOUND
+#             )
+
+### --- Added this as of 06June25 at 12:00 PM
+
+def get_or_create_role(role_name: str):
+    role_name = role_name.strip().lower()
+    role, created = Role.objects.get_or_create(
+        name__iexact=role_name,
+        defaults={"name": role_name}
+    )
+    return role
+
 @api_view(["GET", "POST", "PUT", "DELETE"])
 def RoleView(request, pk=None):
     if request.method == "GET":
-        if pk is not None:
+        if pk:
             try:
                 role = Role.objects.get(pk=pk)
-                serialize_Data = RoleSerializer(role, many=False)
-                return Response(serialize_Data.data, status=status.HTTP_200_OK)
-
+                serializer = RoleSerializer(role)
+                return Response(serializer.data, status=status.HTTP_200_OK)
             except Role.DoesNotExist:
-                return Response(
-                    {"message": "Role not found"}, status=status.HTTP_404_NOT_FOUND
-                )
-
+                return Response({"message": "Role not found"}, status=status.HTTP_404_NOT_FOUND)
         else:
             roles = Role.objects.all()
-            serializerData = RoleSerializer(roles, many=True)
-            return Response(serializerData.data, status=status.HTTP_200_OK)
+            serializer = RoleSerializer(roles, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == "POST":
-        json_data = request.data
+        role_name = request.data.get("name", "").strip().lower()
 
-        # Here we are converting the entered role name to lowercase
-        role = json_data.get("name", "").lower()
+        if not role_name:
+            return Response({"message": "Role name is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        print(role)
-        json_data["name"] = role
+        existing_role = Role.objects.filter(name__iexact=role_name).first()
+        if existing_role:
+            return Response({"message": "Role already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Here we are checking whether entered role already exist or not
-        role = Role.objects.filter(name__iexact=role)
-
-        if role.exists():
-            return Response(
-                {"message": "Role already exists"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        serializer = RoleSerializer(data=json_data)
-
+        serializer = RoleSerializer(data={"name": role_name})
         if serializer.is_valid():
             serializer.save()
-            return Response(
-                {"message": "New Role added Successfully"},
-                status=status.HTTP_201_CREATED,
-            )
+            return Response({"message": "New Role added Successfully"}, status=status.HTTP_201_CREATED)
 
         return Response({"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == "PUT":
+        if not pk:
+            return Response({"message": "Role ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             role = Role.objects.get(pk=pk)
-
-            if request.data.get("name", None) is None:
-                return Response(
-                    {"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST
-                )
-
-            request.data["name"] = request.data["name"].lower()
-
-            updated_Role = RoleSerializer(instance=role, data=request.data)
-
-            if updated_Role.is_valid():
-                updated_Role.save()
-                return Response(
-                    {"message": "Role updated Successfully"},
-                    status=status.HTTP_201_CREATED,
-                )
-
-            return Response(
-                {"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
         except Role.DoesNotExist:
-            return Response(
-                {"message": "Role ID not Found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"message": "Role ID not Found"}, status=status.HTTP_404_NOT_FOUND)
+
+        new_name = request.data.get("name", "").strip().lower()
+
+        if not new_name:
+            return Response({"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if Role.objects.exclude(pk=pk).filter(name__iexact=new_name).exists():
+            return Response({"message": "Role with this name already exists"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = RoleSerializer(instance=role, data={"name": new_name})
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Role updated Successfully"}, status=status.HTTP_200_OK)
+
+        return Response({"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == "DELETE":
+        if not pk:
+            return Response({"message": "Role ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             role = Role.objects.get(pk=pk)
             role.delete()
-            return Response(
-                {"message": "Role deleted Successfuly"},
-                status=status.HTTP_204_NO_CONTENT,
-            )
-
+            return Response({"message": "Role deleted Successfully"}, status=status.HTTP_204_NO_CONTENT)
         except Role.DoesNotExist:
-            return Response(
-                {"message": "Role not Found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"message": "Role not Found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+
 
 
 # ==============Country================
@@ -667,142 +747,264 @@ class ClassPeriodView(viewsets.ModelViewSet):
     
     
 # As of 07May25 at 12:30 PM
+#commented as of 04June25 at 12:00 AM
+# class FeeTypeView(viewsets.ModelViewSet):
+#     queryset = FeeType.objects.all()
+#     serializer_class = FeeTypeSerializer
+    
+    
+# class FeeStructureView(viewsets.ModelViewSet):
+#     queryset = FeeStructure.objects.all()
+#     serializer_class = FeeStructureSerializer
+
+
+# #     # added this code as of 13may25 at 03:45 PM
+# class FeeSubmitView(viewsets.ModelViewSet):
+#     queryset = Fee.objects.all()
+#     serializer_class = FeeSubmitSerializer
+
+#     @action(detail=True, methods=['get'], url_path='summary')
+#     def fee_summary(self, request, pk=None):  # `pk` is student_id
+#         try:
+#             student = Student.objects.get(id=pk)
+#         except Student.DoesNotExist:
+#             return Response({"error": "Student not found"}, status=404)
+
+#         student_data = {
+#             "student_id": student.id,
+#             "student_name": student.user.get_full_name(),
+#             "fee_details": []
+#         }
+
+#         for fee_structure in FeeStructure.objects.all():
+#             fee_type = fee_structure.fee_type
+#             amount_to_be_paid = float(fee_structure.total_fee)
+
+#             amount_paid = Fee.objects.filter(
+#                 student=student,
+#                 fee_structure=fee_structure,
+#                 fee_type=fee_type
+#             ).aggregate(total=Sum('amount_paid'))['total'] or 0.0
+
+#             amount_due = round(amount_to_be_paid - float(amount_paid), 2)
+
+#             latest_payment = Fee.objects.filter(
+#                 student=student,
+#                 fee_structure=fee_structure,
+#                 fee_type=fee_type
+#             ).order_by('-payment_date').first()
+
+#             if latest_payment:
+#                 payment_date = latest_payment.payment_date.strftime('%Y-%m-%d') 
+#                 payment_mode = latest_payment.payment_mode
+#                 receipt_number = str(latest_payment.receipt_number) 
+#             else:
+#                 payment_date = None
+#                 payment_mode = None
+#                 receipt_number = None
+
+#             student_data["fee_details"].append({
+#                 "fee_structure": f"{fee_structure.year_level} - {fee_structure.term}",
+#                 "total_fee": amount_to_be_paid,
+#                 "fee_type": fee_type.name,
+#                 "amount_to_be_paid": amount_to_be_paid,
+#                 "amount_paid": float(amount_paid),
+#                 "amount_due": amount_due,
+#                 "payment_date": payment_date,
+#                 "payment_mode": payment_mode,
+#                 "receipt_number": receipt_number
+#             })
+
+#         return Response(student_data)
+    #commented as of 04June25 at 12:00 AM   
+    
+# As of 04June2025 at 12:15 AM
+# Re-implementation of Fee module based on the provided fee card
+from django.db.models import Q
+from collections import OrderedDict, defaultdict
+
 
 class FeeTypeView(viewsets.ModelViewSet):
     queryset = FeeType.objects.all()
     serializer_class = FeeTypeSerializer
+
+
+class YearLevelFeeView(viewsets.ModelViewSet):
+    queryset = YearLevelFee.objects.all()
+    serializer_class = YearLevelFeeSerializer
     
+    def list(self, request, *args, **kwargs):
+        view_type = request.query_params.get('view', 'grouped').strip().lower()
+        queryset = self.get_queryset().select_related('year_level', 'fee_type')
+        serializer = self.get_serializer(queryset, many=True)
+
+        if view_type == 'pivot':
+            pivoted_data = defaultdict(dict)
+
+            for fee in serializer.data:
+                year_level = fee['year_level_name']
+                year_level_id = fee['year_level_id']
+                fee_type = fee['fee_type_name']
+                amount = fee['amount']
+
+                if 'year_level' not in pivoted_data[year_level]:
+                    pivoted_data[year_level]['id'] = year_level_id
+                    pivoted_data[year_level]['year_level'] = year_level
+
+                pivoted_data[year_level][fee_type] = amount
+
+            # Reorder fields so 'id' and 'year_level' come first
+            pivoted_list = []
+            for data in pivoted_data.values():
+                ordered = OrderedDict()
+                ordered['id'] = data.pop('id')
+                ordered['year_level'] = data.pop('year_level')
+                ordered.update(data)
+                pivoted_list.append(ordered)
+
+            return Response(pivoted_list)
+
+        # Default: grouped format
+        grouped_fees = YearLevelFeeSerializer.group_by_year_level(serializer.data)
+        return Response(grouped_fees)
+
+class FeeRecordView(viewsets.ModelViewSet):
+    serializer_class = FeeRecordSerializer
+    queryset = FeeRecord.objects.all()
+    filter_backends = [SearchFilter]
+
+    # Enables search using ?search=something
+    search_fields = [
+        'remarks',
+        'receipt_number',
+        'student__user__first_name',
+        'student__user__last_name',
+        'year_level_fees__year_level__level_name',
+    ]
+
+    # Optional filtering by year_level using ?year_level=ID
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        request = self.request
+
+        # Filter by year level (optional)
+        year_level_id = request.query_params.get('year_level')
+        if year_level_id:
+            queryset = queryset.filter(year_level_fees__year_level__id=year_level_id)
+
+        # Full name search
+        search = request.query_params.get('search')
+        if search:
+            search = search.strip()
+            # Handle "first last" or "just first"
+            queryset = queryset.filter(
+                Q(student__user__first_name__icontains=search) |
+                Q(student__user__last_name__icontains=search) |
+                Q(student__user__first_name__icontains=search.split(' ')[0]) &
+                Q(student__user__last_name__icontains=' '.join(search.split(' ')[1:]))
+            )
+
+        return queryset.distinct()
     
-class FeeStructureView(viewsets.ModelViewSet):
-    queryset = FeeStructure.objects.all()
-    serializer_class = FeeStructureSerializer
+    @action(detail=False, methods=['post'], url_path='submit_single_multi_month_fees')
+    def submit_single_multi_month_fees(self, request):
+        student_id = request.data.get('student_id')
+        months = request.data.get('months', [])
+        year_level_fees = request.data.get('year_level_fees', [])
+        paid_amount = request.data.get('paid_amount')
+        payment_mode = request.data.get('payment_mode')
+        remarks = request.data.get('remarks')
+        signature = request.data.get('signature')
 
+        if not months or not isinstance(months, list):
+            return Response({"error": "Months must be a non-empty list."}, status=status.HTTP_400_BAD_REQUEST)
 
-#     # added this code as of 13may25 at 03:45 PM
-class FeeSubmitView(viewsets.ModelViewSet):
-    queryset = Fee.objects.all()
-    serializer_class = FeeSubmitSerializer
-
-    @action(detail=True, methods=['get'], url_path='summary')
-    def fee_summary(self, request, pk=None):  # `pk` is student_id
-        try:
-            student = Student.objects.get(id=pk)
-        except Student.DoesNotExist:
-            return Response({"error": "Student not found"}, status=404)
-
-        student_data = {
-            "student_id": student.id,
-            "student_name": student.user.get_full_name(),
-            "fee_details": []
-        }
-
-        for fee_structure in FeeStructure.objects.all():
-            fee_type = fee_structure.fee_type
-            amount_to_be_paid = float(fee_structure.total_fee)
-
-            amount_paid = Fee.objects.filter(
-                student=student,
-                fee_structure=fee_structure,
-                fee_type=fee_type
-            ).aggregate(total=Sum('amount_paid'))['total'] or 0.0
-
-            amount_due = round(amount_to_be_paid - float(amount_paid), 2)
-
-            latest_payment = Fee.objects.filter(
-                student=student,
-                fee_structure=fee_structure,
-                fee_type=fee_type
-            ).order_by('-payment_date').first()
-
-            if latest_payment:
-                payment_date = latest_payment.payment_date.strftime('%Y-%m-%d') 
-                payment_mode = latest_payment.payment_mode
-                receipt_number = str(latest_payment.receipt_number) 
-            else:
-                payment_date = None
-                payment_mode = None
-                receipt_number = None
-
-            student_data["fee_details"].append({
-                "fee_structure": f"{fee_structure.year_level} - {fee_structure.term}",
-                "total_fee": amount_to_be_paid,
-                "fee_type": fee_type.name,
-                "amount_to_be_paid": amount_to_be_paid,
-                "amount_paid": float(amount_paid),
-                "amount_due": amount_due,
-                "payment_date": payment_date,
+        responses = []
+        for month in months:
+            serializer = self.get_serializer(data={
+                "student_id": student_id,
+                "month": month,
+                "year_level_fees": year_level_fees,
+                "paid_amount": paid_amount,
                 "payment_mode": payment_mode,
-                "receipt_number": receipt_number
+                "remarks": f"{remarks or ''} ({month})",
+                "signature": signature
             })
+            if serializer.is_valid():
+                serializer.save()
+                responses.append(serializer.data)
+            else:
+                responses.append({"month": month, "errors": serializer.errors})
 
-        return Response(student_data)
+        return Response(responses, status=status.HTTP_200_OK)
+
+     
     
-    
-    # 🔹 Razorpay Initiate Payment
-    @action(detail=False, methods=['post'], url_path='initiate-payment')
-    def initiate_payment(self, request):
-        serializer = RazorpayPaymentInitiateSerializer(data=request.data)
-        if serializer.is_valid():
-            data = serializer.validated_data
+    # 🔹 Razorpay Initiate Payment      #commented as of 04June25 at 12:00 AM
+    # @action(detail=False, methods=['post'], url_path='initiate-payment')
+    # def initiate_payment(self, request):
+    #     serializer = RazorpayPaymentInitiateSerializer(data=request.data)
+    #     if serializer.is_valid():
+    #         data = serializer.validated_data
 
-            # Safely fetch the objects, return 404 if not found
-            student = get_object_or_404(Student, id=data['student_id'])
-            fee_structure = get_object_or_404(FeeStructure, id=data['fee_structure_id'])
-            fee_type = get_object_or_404(FeeType, id=data['fee_type_id'])
+    #         # Safely fetch the objects, return 404 if not found
+    #         student = get_object_or_404(Student, id=data['student_id'])
+    #         fee_structure = get_object_or_404(FeeStructure, id=data['fee_structure_id'])
+    #         fee_type = get_object_or_404(FeeType, id=data['fee_type_id'])
 
-            try:
-                # Convert amount to paise (minor currency unit)
-                amount_paise = int(data['amount'] * 100)
-                receipt_id = f"receipt_{student.id}_{fee_type.id}"
+    #         try:
+    #             # Convert amount to paise (minor currency unit)
+    #             amount_paise = int(data['amount'] * 100)
+    #             receipt_id = f"receipt_{student.id}_{fee_type.id}"
 
-                # Create Razorpay order
-                order = client.order.create({
-                    "amount": amount_paise,
-                    "currency": "INR",
-                    "receipt": receipt_id,
-                    "payment_capture": 1
-                })
+    #             # Create Razorpay order
+    #             order = client.order.create({
+    #                 "amount": amount_paise,
+    #                 "currency": "INR",
+    #                 "receipt": receipt_id,
+    #                 "payment_capture": 1
+    #             })
 
-                # Save the fee record
-                Fee.objects.create(
-                    student=student,
-                    fee_structure=fee_structure,
-                    fee_type=fee_type,
-                    amount_paid=data['amount'],
-                    payment_mode='Online',
-                    razorpay_order_id=order['id']
-                )
+    #             # Save the fee record
+    #             Fee.objects.create(
+    #                 student=student,
+    #                 fee_structure=fee_structure,
+    #                 fee_type=fee_type,
+    #                 amount_paid=data['amount'],
+    #                 payment_mode='Online',
+    #                 razorpay_order_id=order['id']
+    #             )
 
-                return Response({
-                    "order_id": order['id'],
-                    "amount": data['amount'],
-                    "currency": "INR",
-                    "student_id": student.id,
-                    "razorpay_key": settings.RAZORPAY_API_KEY,
-                    "receipt": receipt_id
-                })
+    #             return Response({
+    #                 "order_id": order['id'],
+    #                 "amount": data['amount'],
+    #                 "currency": "INR",
+    #                 "student_id": student.id,
+    #                 "razorpay_key": settings.RAZORPAY_API_KEY,
+    #                 "receipt": receipt_id
+    #             })
 
-            except Exception as e:
-                return Response({"error": f"Payment initiation failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #         except Exception as e:
+    #             return Response({"error": f"Payment initiation failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    # 🔹 Razorpay Verify Payment
-    @action(detail=False, methods=['post'], url_path='verify-payment')
-    def verify_payment(self, request):
-        data = request.data
-        try:
-            client.utility.verify_payment_signature({
-                'razorpay_order_id': data['razorpay_order_id'],
-                'razorpay_payment_id': data['razorpay_payment_id'],
-                'razorpay_signature': data['razorpay_signature']
-            })
+    # # 🔹 Razorpay Verify Payment
+    # @action(detail=False, methods=['post'], url_path='verify-payment')
+    # def verify_payment(self, request):
+    #     data = request.data
+    #     try:
+    #         client.utility.verify_payment_signature({
+    #             'razorpay_order_id': data['razorpay_order_id'],
+    #             'razorpay_payment_id': data['razorpay_payment_id'],
+    #             'razorpay_signature': data['razorpay_signature']
+    #         })
 
-            fee = Fee.objects.get(razorpay_order_id=data['razorpay_order_id'])
-            fee.razorpay_payment_id = data['razorpay_payment_id']
-            fee.razorpay_signature = data['razorpay_signature']
-            fee.save()
+    #         fee = Fee.objects.get(razorpay_order_id=data['razorpay_order_id'])
+    #         fee.razorpay_payment_id = data['razorpay_payment_id']
+    #         fee.razorpay_signature = data['razorpay_signature']
+    #         fee.save()
 
-            return Response({"message": "Payment verified successfully."})
-        except razorpay.errors.SignatureVerificationError:
-            return Response({"message": "Payment verification failed."}, status=400)
+    #         return Response({"message": "Payment verified successfully."})
+    #     except razorpay.errors.SignatureVerificationError:
+    #         return Response({"message": "Payment verification failed."}, status=400)

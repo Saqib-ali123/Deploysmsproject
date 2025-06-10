@@ -3,8 +3,8 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 
 from director.models import Role
-from .models import GuardianType, Student
-from .serializers import GuardianTypeSerializer, StudentSerializer
+from .models import GuardianType, Student, StudentYearLevel
+from .serializers import GuardianTypeSerializer, StudentSerializer, StudentYearLevelSerializer
 from rest_framework import status
 from rest_framework import filters
 from rest_framework.response import Response
@@ -187,5 +187,20 @@ class GuardianProfileView(viewsets.ModelViewSet):
                 return Response ({"error": "Deletion unsuccessful: Error deleting user"})
             
             
-            
+
+
+
+
+# As of 29May25 at 02:30 PM
+   
+class StudentYearLevelView(viewsets.ModelViewSet):
+    queryset = StudentYearLevel.objects.all()
+    serializer_class = StudentYearLevelSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = [
+        'level__level_name'
+        # 'year__year_name',
+        # 'student__user__first_name',
+        # 'student__user__last_name',
+    ]            
             

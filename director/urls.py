@@ -20,9 +20,10 @@ router.register(r'officestaff',OfficeStaffView)
 router.register(r'DocumentType',DocumentTypeView)
 router.register(r'Documant',DocumentView)
 # router.register(r'class-periods', ClassPeriodView),
-router.register(r'fee-types', FeeTypeView),
-router.register(r'fee-structures', FeeStructureView),
-router.register(r'submit_fee',FeeSubmitView, basename='submit_fee')
+router.register(r'fee-types', FeeTypeView) # whole code commented as of 06June25 at 12:30 PM
+router.register(r'year-level-fee', YearLevelFeeView)
+router.register(r'fee-record', FeeRecordView, basename='fee-record') #
+# router.register(r'submit_fee',FeeSubmitView, basename='submit_fee')
 
 
 urlpatterns = [

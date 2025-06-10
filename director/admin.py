@@ -19,7 +19,7 @@ admin.site.register(
         Admission,
         BankingDetail,
         FeeType,
-        FeeStructure,
-        Fee,
+        YearLevelFee,
+        FeeRecord,
     ]
 )
