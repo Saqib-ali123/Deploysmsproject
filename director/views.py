@@ -14,9 +14,18 @@ from rest_framework.decorators import action
 import razorpay
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+import random
+import string
 
-client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
+# client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
+client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
+### Function to generate auto receipt no. called it inside initiate payment
+def generate_receipt_number():
+        while True:
+            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+            if not FeeRecord.objects.filter(receipt_number=code).exists():
+                return code
 
 
 
@@ -937,6 +946,96 @@ class FeeRecordView(viewsets.ModelViewSet):
                 responses.append({"month": month, "errors": serializer.errors})
 
         return Response(responses, status=status.HTTP_200_OK)
+
+### Razorpay custom views
+
+    ### using custom view
+    @action(detail=False, methods=["post"], url_path="initiate-payment")
+    def initiate_payment(self, request):
+        serializer = FeeRecordRazorpaySerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        validated_data = serializer.validated_data
+        total = validated_data['total_amount']
+        late_fee = validated_data['late_fee']
+        amount = total + late_fee
+        
+        # Generate unique receipt number
+        receipt_number = generate_receipt_number()
+
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        razorpay_order = client.order.create({
+            'amount': int(amount * 100),  # in paise
+            'currency': 'INR',
+            'payment_capture': '1',
+            'receipt': receipt_number
+        })
+
+        return Response({
+            'razorpay_order_id': razorpay_order['id'],
+            # 'razorpay_key': settings.RAZORPAY_KEY_ID,
+            'amount': float(amount),
+            'currency': 'INR',
+            'receipt_number': receipt_number
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["post"], url_path="confirm-payment")
+    def confirm_payment(self, request):
+        data = request.data
+        try:
+            razorpay_payment_id = data["razorpay_payment_id"]
+            razorpay_order_id = data["razorpay_order_id"]
+            razorpay_signature_id = data["razorpay_signature_id"]
+            student_id = data["student_id"]
+            month = data["month"]
+            fee_ids = data["year_level_fees"]
+        except KeyError:
+            return Response({"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify signature
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        try:
+            client.utility.verify_payment_signature({
+                "razorpay_order_id": razorpay_order_id,
+                "razorpay_payment_id": razorpay_payment_id,
+                "razorpay_signature_id": razorpay_signature_id
+            })
+        except razorpay.errors.SignatureVerificationError:
+            return Response({"error": "Payment verification failed"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create FeeRecord
+        student = Student.objects.get(id=student_id)
+        year_level_fees = YearLevelFee.objects.filter(id__in=fee_ids)
+        total = sum(fee.amount for fee in year_level_fees)
+        late_fee = Decimal("25.00") if date.today().day > 15 else Decimal("0.00")
+        total_paid = total + late_fee
+
+        fee_record = FeeRecord.objects.create(
+            student=student,
+            month=month,
+            total_amount=total,
+            paid_amount=total_paid,
+            due_amount=0,
+            payment_date=date.today(),
+            payment_mode='Online',
+            late_fee=late_fee,
+            payment_status='Paid',
+            remarks='Paid via Razorpay',
+            signature='Verified Online',
+            razorpay_order_id=razorpay_order_id,
+            razorpay_payment_id=razorpay_payment_id,
+            razorpay_signature_id=razorpay_signature_id
+        )
+        fee_record.year_level_fees.set(year_level_fees)
+
+        return Response({
+            "message": "Payment successful and FeeRecord saved.",
+            "receipt_number": fee_record.receipt_number
+        }, status=status.HTTP_201_CREATED)
+
+
+
 
      
     

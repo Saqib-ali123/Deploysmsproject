@@ -18,7 +18,7 @@ router.register(r'terms', TermView)
 router.register(r'admission',AdmissionView)
 router.register(r'officestaff',OfficeStaffView)
 router.register(r'DocumentType',DocumentTypeView)
-router.register(r'Documant',DocumentView)
+router.register(r'Document',DocumentView)
 # router.register(r'class-periods', ClassPeriodView),
 router.register(r'fee-types', FeeTypeView) # whole code commented as of 06June25 at 12:30 PM
 router.register(r'year-level-fee', YearLevelFeeView)

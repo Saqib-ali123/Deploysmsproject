@@ -1012,12 +1012,52 @@ class FeeRecordSerializer(serializers.ModelSerializer):
         return fee_record           # here ends
 
 
+### Razorpay Functionality Added as of 10Jun25
 
-class RazorpayPaymentInitiateSerializer(serializers.Serializer):
-    student_id = serializers.IntegerField()
-    fee_structure_id = serializers.IntegerField()
-    fee_type_id = serializers.IntegerField()
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+class FeeRecordRazorpaySerializer(serializers.ModelSerializer):
+    student_id = serializers.PrimaryKeyRelatedField(queryset=Student.objects.all(), source='student', write_only=True)
+    year_level_fees = serializers.PrimaryKeyRelatedField(queryset=YearLevelFee.objects.all(), many=True)
+    
+    class Meta:
+        model = FeeRecord
+        fields = [
+            'id', 'student_id', 'month', 'year_level_fees', 'total_amount', 'paid_amount', 'due_amount',
+            'late_fee', 'payment_mode', 'payment_status', 'remarks', 'signature',
+            'razorpay_order_id', 'razorpay_payment_id', 'razorpay_signature_id'
+        ]
+        read_only_fields = ['total_amount', 'due_amount', 'late_fee', 'payment_status', 'razorpay_payment_id', 'razorpay_signature_id']
+
+    def validate(self, data):
+        student = data.get('student')
+        month = data.get('month')
+        year_level_fees = data.get('year_level_fees', [])
+        paid_amount = data.get('paid_amount', Decimal("0.00"))
+
+        if FeeRecord.objects.filter(student=student, month=month).exists():
+            # raise serializers.ValidationError("Fee already submitted for this month.")
+            raise serializers.ValidationError(f"Fee already submitted for {month} month for this student.")
+
+        if not year_level_fees:
+            raise serializers.ValidationError("At least one year level fee must be selected.")
+
+        total = sum(fee.amount for fee in year_level_fees)
+        late_fee = Decimal("25.00") if date.today().day > 15 else Decimal("0.00")
+        due_amount = total + late_fee - paid_amount
+
+        data['total_amount'] = total
+        data['late_fee'] = late_fee
+        data['due_amount'] = due_amount if due_amount > 0 else Decimal("0.00")
+
+        return data
+
+
+
+### Previous Razorpay Code commented as of 10June25
+# class RazorpayPaymentInitiateSerializer(serializers.Serializer):
+#     student_id = serializers.IntegerField()
+#     fee_structure_id = serializers.IntegerField()
+#     fee_type_id = serializers.IntegerField()
+#     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 
 
