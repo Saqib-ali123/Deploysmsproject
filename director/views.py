@@ -471,6 +471,11 @@ def RoleView(request, pk=None):
 class CountryView(viewsets.ModelViewSet):
     queryset = Country.objects.all()
     serializer_class = CountrySerializer
+    
+# ==============Subject================
+class subjectView(viewsets.ModelViewSet):
+    queryset = Subject.objects.all()
+    serializer_class = subjectSerializer
 
 
 # ===============State===================
@@ -637,9 +642,68 @@ class DocumentTypeView(viewsets.ModelViewSet):
     queryset = DocumentType.objects.all()
     serializer_class = DocumentTypeSerializer 
     
+class FileView(viewsets.ModelViewSet):
+    queryset = File.objects.all()
+    serializer_class = FileSerializer 
+
+
+from rest_framework.parsers import MultiPartParser, FormParser
+
 class DocumentView(viewsets.ModelViewSet):
     queryset = Document.objects.all()
-    serializer_class = DocumentSerializer 
+    serializer_class = DocumentSerializer
+    parser_classes = (MultiPartParser, FormParser)
+
+    def create(self, request, *args, **kwargs):
+        print("Request FILES:", request.FILES)
+        print("Request DATA:", request.data)
+
+        files = request.FILES.getlist('uploaded_files')
+        document_types = request.data.getlist('document_types')
+
+        if not files:
+            return Response({"error": "No files uploaded"}, status=status.HTTP_400_BAD_REQUEST)
+        if not document_types:
+            return Response({"error": "At least one document type must be selected."}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = request.data.copy()
+        data.setlist('uploaded_files', files)
+        data.setlist('document_types', document_types)
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+
+    # parser_classes = [MultiPartParser, FormParser]  # Important for file uploads
+
+    # def create(self, request, *args, **kwargs):
+    #     document_types = request.data.getlist('document_types')
+    #     student = request.data.get('student')
+    #     teacher = request.data.get('teacher')
+    #     guardian = request.data.get('guardian')
+    #     office_staff = request.data.get('office_staff')
+    #     uploaded_files = request.FILES.getlist('files')
+
+    #     if not uploaded_files:
+    #         return Response({"error": "No files uploaded"}, status=status.HTTP_400_BAD_REQUEST)
+
+    #     file_objs = [File.objects.create(file=f) for f in uploaded_files]
+
+    #     document = Document.objects.create(
+    #         student_id=student,
+    #         teacher_id=teacher,
+    #         guardian_id=guardian,
+    #         office_staff_id=office_staff
+    #     )
+    #     document.files.set(file_objs)
+    #     document.document_types.set(document_types)
+    #     document.save()
+
+    #     serializer = self.get_serializer(document)
+    #     return Response(serializer.data, status=status.HTTP_201_CREATED)
     
 # **********************************    
 

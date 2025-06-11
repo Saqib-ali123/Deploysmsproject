@@ -21,5 +21,8 @@ admin.site.register(
         FeeType,
         FeeStructure,
         Fee,
+        File,
+        Document,
+        DocumentType
     ]
 )
