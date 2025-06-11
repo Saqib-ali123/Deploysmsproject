@@ -8,6 +8,7 @@ from django.utils.dateformat import format as date_format
 from datetime import date
 from django.db.models import Count, Q
 from rest_framework.viewsets import ViewSet
+from teacher.models import TeacherYearLevel
 
 
 class AttendanceSessionViewSet(ModelViewSet):
@@ -222,3 +223,11 @@ class GuardianChildrenAttendanceViewSet(ViewSet):
             })
 
         return Response(response_data)
+    
+    
+    
+class TeacherYearLevelList(APIView):
+    def get(self, request, teacher_id):
+        levels = TeacherYearLevel.objects.filter(teacher_id=teacher_id).select_related('year_level')
+        data = [{'id': l.year_level.id, 'name': str(l.year_level)} for l in levels]
+        return Response(data)
