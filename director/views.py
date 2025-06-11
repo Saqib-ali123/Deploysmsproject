@@ -647,7 +647,38 @@ class FileView(viewsets.ModelViewSet):
     serializer_class = FileSerializer 
 
 
+# from rest_framework.parsers import MultiPartParser, FormParser
+
+# class DocumentView(viewsets.ModelViewSet):
+#     queryset = Document.objects.all()
+#     serializer_class = DocumentSerializer
+#     parser_classes = (MultiPartParser, FormParser)
+
+#     def create(self, request, *args, **kwargs):
+#         print("Request FILES:", request.FILES)
+#         print("Request DATA:", request.data)
+
+#         files = request.FILES.getlist('uploaded_files')
+#         document_types = request.data.getlist('document_types')
+
+#         if not files:
+#             return Response({"error": "No files uploaded"}, status=status.HTTP_400_BAD_REQUEST)
+#         if not document_types:
+#             return Response({"error": "At least one document type must be selected."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         data = request.data.copy()
+#         data.setlist('uploaded_files', files)
+#         data.setlist('document_types', document_types)
+
+#         serializer = self.get_serializer(data=data)
+#         serializer.is_valid(raise_exception=True)
+#         self.perform_create(serializer)
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+from rest_framework import viewsets, status
+from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
+import json  # 🔸 This goes at the top of the file
 
 class DocumentView(viewsets.ModelViewSet):
     queryset = Document.objects.all()
@@ -655,25 +686,32 @@ class DocumentView(viewsets.ModelViewSet):
     parser_classes = (MultiPartParser, FormParser)
 
     def create(self, request, *args, **kwargs):
-        print("Request FILES:", request.FILES)
-        print("Request DATA:", request.data)
-
         files = request.FILES.getlist('uploaded_files')
         document_types = request.data.getlist('document_types')
+        identities = request.data.getlist('identities')
 
         if not files:
             return Response({"error": "No files uploaded"}, status=status.HTTP_400_BAD_REQUEST)
         if not document_types:
             return Response({"error": "At least one document type must be selected."}, status=status.HTTP_400_BAD_REQUEST)
+        if not identities:
+            return Response({"error": "Identities are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(document_types) != len(identities):
+            return Response({"error": "Identities count must match document types count."}, status=status.HTTP_400_BAD_REQUEST)
 
         data = request.data.copy()
         data.setlist('uploaded_files', files)
         data.setlist('document_types', document_types)
+        data.setlist('identities', identities)
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+
 
 
 
