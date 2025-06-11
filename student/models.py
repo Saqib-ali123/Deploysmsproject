@@ -9,19 +9,35 @@ from decimal import Decimal
 
 class Student(models.Model):
     user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True)
-    date_of_birth = models.DateField(null=True,blank=True )
+    father_name=models.CharField(max_length=250)
+    mother_name=models.CharField(max_length=250)
+    date_of_birth = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=50)
+    # enrolment_date = models.DateField(null=True, blank=True)
+    religion = models.CharField(max_length=50)
+    category = models.CharField(
+    max_length=10,
+    choices=[
+        ('SC', 'Scheduled Caste'),
+        ('ST', 'Scheduled Tribe'),
+        ('OBC', 'Other Backward Class'),
+        ('GEN', 'General')
+    ],
+    default='GEN'
+)
 
-    enrolment_date = models.DateField(null=True,blank=True )
+    height = models.FloatField()
+    weight = models.FloatField()
+    blood_group = models.CharField(max_length=5)
+    number_of_siblings = models.IntegerField()
+
+    # Many-to-many relationship with classPeriod
+    classes = models.ManyToManyField(
+        "director.classPeriod", blank=False, related_name="Student"
+    )
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name} "
-
-    # -------- Relation Between Student AND class Period  ( MANY TO MANY ) ----------------
-
-    classes = models.ManyToManyField(
-        "director.ClassPeriod", blank=False, related_name="Student"
-    )
 
     class Meta:
         verbose_name = "Student"
@@ -29,14 +45,32 @@ class Student(models.Model):
         db_table = "Student"
 
 
+
 class Guardian(models.Model):
     user = models.OneToOneField(
-        User, on_delete=models.SET_NULL, null=True, related_name="guardian_relation"
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="guardian_relation"
     )
-    phone_no = models.CharField(max_length=50, null=False)
+    phone_no = models.CharField(max_length=50)
+    annual_income = models.IntegerField()
+    
+    means_of_livelihood = models.CharField(
+        max_length=10,
+        choices=[
+            ('Govt', 'Government'),
+            ('Non-Govt', 'Non-Government'),
+        ],
+        default='Govt'
+    )
+    
+    qualification = models.CharField(max_length=300)
+    occupation = models.CharField(max_length=300)
+    designation = models.CharField(max_length=300)
 
     def __str__(self):
-        return f"{self.user.first_name} {self.user.last_name}"
+        return f"{self.user.first_name} {self.user.last_name}" if self.user else "No User"
 
     class Meta:
         verbose_name = "Guardian"
