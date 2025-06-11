@@ -3,8 +3,9 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
+router.register(r'studentYearLevel', StudentYearLevelView)
 router.register(r'students', StudentView)
-router.register(r'gaurdian', GuardianProfileView)
+router.register(r'guardian', GuardianProfileView)
 
 
 urlpatterns = [
