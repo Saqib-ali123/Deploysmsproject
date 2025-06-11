@@ -15,4 +15,5 @@ router.register(r'guardian/attendance', GuardianChildrenAttendanceViewSet, basen
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('teacher-classes/<int:teacher_id>/', TeacherYearLevelList.as_view(), name='teacher-classes')
 ]
