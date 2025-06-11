@@ -839,43 +839,27 @@ class FeeTypeView(viewsets.ModelViewSet):
 
 
 class YearLevelFeeView(viewsets.ModelViewSet):
-    queryset = YearLevelFee.objects.all()
     serializer_class = YearLevelFeeSerializer
-    
+
+    def get_queryset(self):
+        return YearLevelFee.objects.select_related('year_level', 'fee_type')
+
     def list(self, request, *args, **kwargs):
-        view_type = request.query_params.get('view', 'grouped').strip().lower()
-        queryset = self.get_queryset().select_related('year_level', 'fee_type')
+        queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
-
-        if view_type == 'pivot':
-            pivoted_data = defaultdict(dict)
-
-            for fee in serializer.data:
-                year_level = fee['year_level_name']
-                year_level_id = fee['year_level_id']
-                fee_type = fee['fee_type_name']
-                amount = fee['amount']
-
-                if 'year_level' not in pivoted_data[year_level]:
-                    pivoted_data[year_level]['id'] = year_level_id
-                    pivoted_data[year_level]['year_level'] = year_level
-
-                pivoted_data[year_level][fee_type] = amount
-
-            # Reorder fields so 'id' and 'year_level' come first
-            pivoted_list = []
-            for data in pivoted_data.values():
-                ordered = OrderedDict()
-                ordered['id'] = data.pop('id')
-                ordered['year_level'] = data.pop('year_level')
-                ordered.update(data)
-                pivoted_list.append(ordered)
-
-            return Response(pivoted_list)
-
-        # Default: grouped format
         grouped_fees = YearLevelFeeSerializer.group_by_year_level(serializer.data)
         return Response(grouped_fees)
+
+    def retrieve(self, request, pk=None):
+        queryset = self.get_queryset().filter(year_level__id=pk)
+        if not queryset.exists():
+            return Response({"detail": "Not found."}, status=404)
+
+        serializer = self.get_serializer(queryset, many=True)
+        grouped_fees = YearLevelFeeSerializer.group_by_year_level(serializer.data)
+        return Response(grouped_fees[0] if grouped_fees else {})
+    
+    
 
 class FeeRecordView(viewsets.ModelViewSet):
     serializer_class = FeeRecordSerializer

@@ -910,20 +910,32 @@ class YearLevelFeeSerializer(serializers.ModelSerializer):
         data.pop('year_level', None)
         data.pop('fee_type', None)
         return data
-
+ 
+    # Added this as of 11June25 at 11:39 AM
     @staticmethod
     def group_by_year_level(fees):
         grouped_fees = {}
         for fee in fees:
-            year_level = fee['year_level_name']
+            year_level_name = fee['year_level_name']
+            year_level_id = fee['year_level_id']
             fee_data = {
                 'id': fee['id'],
                 'fee_type': fee['fee_type_name'],
                 'amount': fee['amount']
             }
-            if year_level not in grouped_fees:
-                grouped_fees[year_level] = {'year_level': year_level, 'fees': []}
-            grouped_fees[year_level]['fees'].append(fee_data)
+
+            # Use a tuple key to keep both id and name
+            key = (year_level_id, year_level_name)
+
+            if key not in grouped_fees:
+                grouped_fees[key] = {
+                    'id': year_level_id,
+                    'year_level': year_level_name,
+                    'fees': []
+                }
+
+            grouped_fees[key]['fees'].append(fee_data)
+
         return list(grouped_fees.values())
 
 
