@@ -62,6 +62,12 @@ class City(models.Model):
 class Address(models.Model):
     user = models.ForeignKey("authentication.User", on_delete=models.DO_NOTHING)
     house_no = models.IntegerField()
+    habitation = models.CharField(max_length=100)
+    word_no = models.IntegerField()
+    zone_no = models.IntegerField()
+    block = models.CharField(max_length=100)
+    district = models.CharField(max_length=100)
+    division = models.CharField(max_length=100)
     area_code = models.IntegerField()
     country = models.ForeignKey(Country, on_delete=models.DO_NOTHING)
     state = models.ForeignKey(State, on_delete=models.DO_NOTHING)
@@ -93,7 +99,7 @@ class Director(models.Model):
 
 class BankingDetail(models.Model):
     account_no = models.BigIntegerField(primary_key=True, unique=True)
-    ifsc_code = models.BigIntegerField()
+    ifsc_code = models.CharField(max_length=225)
     holder_name = models.CharField(max_length=255)
     user = models.OneToOneField("authentication.User", on_delete=models.DO_NOTHING)
 
@@ -254,6 +260,28 @@ class ClassPeriod(models.Model):
 #     fee_type = models.ForeignKey(FeeType, on_delete=models.CASCADE)
 #     total_fee = models.DecimalField(max_digits=10, decimal_places=2)
 
+class Admission(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.DO_NOTHING)
+    admission_date = models.DateField(auto_now_add=True)
+    previous_school_name = models.CharField(max_length=200)
+    previous_standard_studied = models.CharField(max_length=200)
+    tc_letter = models.CharField(max_length=200)
+    guardian = models.ForeignKey(Guardian, on_delete=models.DO_NOTHING)
+    year_level = models.ForeignKey(YearLevel, on_delete=models.DO_NOTHING)
+    school_year = models.ForeignKey(SchoolYear, on_delete=models.DO_NOTHING)
+    emergency_contact_n0 = models.CharField(max_length=100)
+    entire_road_distance_from_home_to_school = models.CharField(max_length=100)
+    obtain_marks = models.FloatField()
+    total_marks = models.FloatField()
+    previous_percentage = models.FloatField(blank=True, null=True)  # Allow null/blank since auto-calculated
+
+    def save(self, *args, **kwargs):
+        if self.total_marks > 0:
+            self.previous_percentage = (self.obtain_marks / self.total_marks) * 100
+        else:
+            self.previous_percentage = 0  
+        super().save(*args, **kwargs)
+
 #     def __str__(self):
 #         return f"{self.year_level} - {self.term} - {self.fee_type.name}"
 
@@ -261,6 +289,9 @@ class ClassPeriod(models.Model):
 #         verbose_name = "FeeStructure"
 #         verbose_name_plural = "FeeStructures"
 #         db_table = "FeeStructure"
+
+    class Meta:
+        db_table = "Admission"
 
 # # As of 08May25 at 11:38 AM
 # class Fee(models.Model):              #commented as of 04June25 at 12:00 AM
@@ -295,6 +326,7 @@ class ClassPeriod(models.Model):
 from django.db import models
 import random
 import string
+
 
 class FeeType(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -435,11 +467,11 @@ class DocumentType(models.Model):
         db_table = "DocumentType"
         
         
+        
 
 class Document(models.Model):
-    document_type = models.ForeignKey(DocumentType, on_delete=models.CASCADE)
-    file = models.FileField(upload_to= Document_folder)
-    # file = models.FileField(upload_to='Document_folder/')
+    document_types = models.ManyToManyField(DocumentType)
+    # files = models.ManyToManyField(File)
     
     student = models.ForeignKey(Student, on_delete=models.SET_NULL, null=True, blank=True)
     teacher = models.ForeignKey("teacher.Teacher", on_delete=models.SET_NULL, null=True, blank=True)
@@ -450,8 +482,19 @@ class Document(models.Model):
 
     def __str__(self):
         entity = self.student or self.teacher or self.guardian or self.office_staff
-        return f"{self.document_type.name} - {entity}"
+        return f"{self.document_types.name} - {entity}"
 
     class Meta:
         db_table = "Document"
         
+class File(models.Model):
+    file = models.FileField(upload_to=Document_folder) 
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='files', null=True)
+ 
+    
+
+    def __str__(self):
+        return f"File {self.id} - {self.file.name}"
+
+    class Meta:
+        db_table = "File"
