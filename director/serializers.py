@@ -899,12 +899,63 @@ class OfficeStaffSerializer(serializers.ModelSerializer):
     
     # ******************DocumentTypeSerializer*************************
     
+# class DocumentTypeSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = DocumentType
+#         fields = "__all__" 
+            
+    
+# class FileSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = File
+#         fields = ['id', 'file']
+
+
+# class DocumentSerializer(serializers.ModelSerializer):
+#     files = FileSerializer(many=True, read_only=True)
+#     uploaded_files = serializers.ListField(
+#         child=serializers.FileField(),
+#         write_only=True,
+#         required=True,
+#         allow_empty=False
+#     )
+
+#     document_types = serializers.PrimaryKeyRelatedField(
+#         queryset=DocumentType.objects.all(),
+#         many=True,
+#         required=True,
+#         allow_empty=False
+#     )
+
+#     class Meta:
+#         model = Document
+#         fields = [
+#             'id', 'document_types', 'files', 'uploaded_files',
+#             'student', 'teacher', 'guardian', 'office_staff', 'uploaded_at'
+#         ]
+
+#     def create(self, validated_data):
+#         uploaded_files = validated_data.pop('uploaded_files')
+#         document_types = validated_data.pop('document_types')
+
+#         # Create Document first
+#         document = Document.objects.create(**validated_data)
+#         document.document_types.set(document_types)
+
+#         for uploaded_file in uploaded_files:
+#             file_instance = File(file=uploaded_file, document=document)
+#             file_instance.save()  # This triggers upload_to() and saves the file
+#             document.files.add(file_instance)
+
+#         return document
+import json
+
 class DocumentTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = DocumentType
-        fields = "__all__" 
-            
-    
+        fields = "__all__"
+
+
 class FileSerializer(serializers.ModelSerializer):
     class Meta:
         model = File
@@ -913,6 +964,7 @@ class FileSerializer(serializers.ModelSerializer):
 
 class DocumentSerializer(serializers.ModelSerializer):
     files = FileSerializer(many=True, read_only=True)
+
     uploaded_files = serializers.ListField(
         child=serializers.FileField(),
         write_only=True,
@@ -927,25 +979,44 @@ class DocumentSerializer(serializers.ModelSerializer):
         allow_empty=False
     )
 
+    # identities as a list (NOT JSONField, just normal string field storing JSON)
+    identities = serializers.ListField(
+        child=serializers.CharField(),
+        write_only=True
+    )
+
+    identities_read = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Document
         fields = [
-            'id', 'document_types', 'files', 'uploaded_files',
+            'id', 'document_types', 'identities', 'identities_read', 'files', 'uploaded_files',
             'student', 'teacher', 'guardian', 'office_staff', 'uploaded_at'
         ]
 
+    def get_identities_read(self, obj):
+        import json
+        try:
+            return json.loads(obj.identities) if obj.identities else []
+        except:
+            return []
+
     def create(self, validated_data):
+        import json
+
         uploaded_files = validated_data.pop('uploaded_files')
         document_types = validated_data.pop('document_types')
+        identities_list = validated_data.pop('identities')
 
-        # Create Document first
+        if len(document_types) != len(identities_list):
+            raise serializers.ValidationError("Number of document_types and identities must match.")
+
         document = Document.objects.create(**validated_data)
         document.document_types.set(document_types)
+        document.identities = json.dumps(identities_list)
+        document.save()
 
         for uploaded_file in uploaded_files:
-            file_instance = File(file=uploaded_file, document=document)
-            file_instance.save()  # This triggers upload_to() and saves the file
-            document.files.add(file_instance)
+            File.objects.create(file=uploaded_file, document=document)
 
         return document
-

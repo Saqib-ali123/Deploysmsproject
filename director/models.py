@@ -459,6 +459,7 @@ class OfficeStaff(models.Model):
 
 class DocumentType(models.Model):
     name = models.CharField(max_length=100)
+    
 
     def __str__(self):
         return self.name
@@ -471,7 +472,7 @@ class DocumentType(models.Model):
 
 class Document(models.Model):
     document_types = models.ManyToManyField(DocumentType)
-    # files = models.ManyToManyField(File)
+    identities = models.CharField(max_length=1000, blank=True, null=True)
     
     student = models.ForeignKey(Student, on_delete=models.SET_NULL, null=True, blank=True)
     teacher = models.ForeignKey("teacher.Teacher", on_delete=models.SET_NULL, null=True, blank=True)
