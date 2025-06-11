@@ -336,9 +336,9 @@ class YearLevelFee(models.Model):
 class FeeRecord(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     MONTH_CHOICES = [
-        ("July", "July"), ("Aug", "August"), ("Sep", "September"),
-        ("Oct", "October"), ("Nov", "November"), ("Dec", "December"),
-        ("Jan", "January"), ("Feb", "February"), ("March", "March"),
+        ("July", "July"), ("August", "August"), ("September", "September"),
+        ("October", "October"), ("November", "November"), ("December", "December"),
+        ("January", "January"), ("February", "February"), ("March", "March"),
         ("April", "April"), ("May", "May"), ("June", "June"),
     ]
     month = models.CharField(max_length=20, choices=MONTH_CHOICES)
@@ -348,6 +348,7 @@ class FeeRecord(models.Model):
     due_amount = models.DecimalField(max_digits=8, decimal_places=2)
     payment_date = models.DateField(auto_now_add=True)
     payment_mode = models.CharField(max_length=20, choices=[('Cash', 'Cash'), ('Online', 'Online'), ('Cheque', 'Cheque')])
+    # is_cheque_cleared = models.BooleanField(default=False)  # Added as of 11June25 at 12:39 PM
     receipt_number = models.CharField(max_length=10, unique=True, editable=False, blank=True, auto_created=True)
     late_fee = models.DecimalField(max_digits=8, decimal_places=2)
     payment_status = models.CharField(max_length=20, choices=[('Paid', 'Paid'), ('Unpaid', 'Unpaid')])
