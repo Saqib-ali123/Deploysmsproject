@@ -343,3 +343,27 @@ class GuardianSerializer(serializers.ModelSerializer):
 
 
 
+    
+#     class Meta:
+#         model = Guardian
+#         exclude = ["user"]
+#     #     extra_kwargs = {
+#     # 'password': {'write_only': True},
+#         # }    
+        
+
+## As of 29May25 at 02:30 PM
+class StudentYearLevelSerializer(serializers.ModelSerializer):
+    student_name = serializers.SerializerMethodField()
+    level_name = serializers.CharField(source='level.level_name', read_only=True)
+    year_name = serializers.CharField(source='year.year_name', read_only=True)
+
+    def get_student_name(self, obj):
+        first_name = obj.student.user.first_name or ''
+        last_name = obj.student.user.last_name or ''
+        return f"{first_name} {last_name}".strip()
+
+    class Meta:
+        model = StudentYearLevel
+        fields = ['id', 'student_name', 'level_name', 'year_name']
+
