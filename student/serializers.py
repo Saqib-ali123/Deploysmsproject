@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from authentication.models import User
-from director.models import Role, ClassPeriod
+from director.models import Address, City, Country, Role, ClassPeriod, State
 from .models import GuardianType, Student, StudentGuardian,StudentYearLevel
 from director.models import ClassPeriod, YearLevel
 
@@ -18,100 +18,212 @@ class GuardianTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = GuardianType
         fields = "__all__"
+        
+# class StudentYearLevelSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = StudentYearLevel
+#         fields = "__all__"
 
 
-class StudentSerializer(serializers.ModelSerializer):
-    first_name = serializers.CharField(max_length=100, write_only=True)
-    middle_name = serializers.CharField(max_length=100, write_only=True, required=False, allow_blank=True)
-    last_name = serializers.CharField(max_length=100, write_only=True)
-    password = serializers.CharField(max_length=100, write_only=True, required=False)
-    email = serializers.EmailField(write_only=True)
-    user_profile = serializers.ImageField(required=False, allow_null=True, write_only=True)
-    classes = serializers.PrimaryKeyRelatedField(
-        queryset=ClassPeriod.objects.all(), many=True, required=False
+
+class StudentYearLevelSerializer(serializers.ModelSerializer):
+   
+    student = serializers.SerializerMethodField(read_only=True)
+    level = serializers.SerializerMethodField(read_only=True)
+
+    
+    level_id = serializers.PrimaryKeyRelatedField(
+        queryset=YearLevel.objects.all(),
+        write_only=True,
+        source='level'
     )
 
     class Meta:
+        model = StudentYearLevel
+        fields = ['id', 'student',  'level', 'level_id', 'year']
+
+    def get_student(self, obj):
+        user = obj.student.user
+        return {
+            "id": obj.student.id,
+            "first_name": user.first_name if user else "",
+            "last_name": user.last_name if user else "",
+            # "email": user.email if user else ""
+        }
+
+
+    def get_level(self, obj):
+        return {
+            "id": obj.level.id,
+            "name": obj.level.level_name
+        }
+
+
+
+class StudentSerializer(serializers.ModelSerializer):
+    # User Info (write-only)
+    first_name = serializers.CharField(max_length=100, write_only=True)
+    middle_name = serializers.CharField(max_length=100, write_only=True, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=100, write_only=True)
+    email = serializers.EmailField(write_only=True)
+    password = serializers.CharField(max_length=100, write_only=True, required=False)
+    user_profile = serializers.ImageField(required=False, allow_null=True, write_only=True)
+
+    # Student Fields
+    father_name = serializers.CharField(required=False, allow_blank=True)
+    mother_name = serializers.CharField(required=False, allow_blank=True)
+    religion = serializers.CharField(required=False, allow_blank=True)
+    category = serializers.ChoiceField(
+        choices=[('SC', 'Scheduled Caste'), ('ST', 'Scheduled Tribe'), ('OBC', 'Other Backward Class'), ('GEN', 'General')],
+        required=False
+    )
+    height = serializers.FloatField(required=False)
+    weight = serializers.FloatField(required=False)
+    blood_group = serializers.CharField(required=False, allow_blank=True)
+    number_of_siblings = serializers.IntegerField(required=False)
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    gender = serializers.CharField(required=False, allow_blank=True)
+    # enrolment_date = serializers.DateField(required=False, allow_null=True)
+
+    classes = serializers.PrimaryKeyRelatedField(queryset=ClassPeriod.objects.all(), many=True, required=False)
+
+    # Address fields for input (write_only)
+    house_no = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    habitation = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    word_no = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    zone_no = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    block = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    district = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    division = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    area_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    address_line = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    country = serializers.PrimaryKeyRelatedField(queryset=Country.objects.all(), required=False, write_only=True)
+    state = serializers.PrimaryKeyRelatedField(queryset=State.objects.all(), required=False, write_only=True)
+    city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all(), required=False, write_only=True)
+
+    # Banking fields for input (write_only)
+    account_no = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    ifsc_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    holder_name = serializers.CharField(required=False, allow_blank=True, write_only=True)
+
+    # For output: Address and Banking details shown as nested objects
+    address = serializers.SerializerMethodField()
+    banking_detail = serializers.SerializerMethodField()
+
+    class Meta:
         model = Student
-        exclude = ['user']  # Exclude user field from being shown
-        # extra_kwargs = {'password': {'write_only': True}}
+        exclude = ['user']  # user handled separately
+
+    def get_address(self, obj):
+        address = Address.objects.filter(user=obj.user).first()
+        if address:
+            return {
+                "house_no": address.house_no,
+                "habitation": address.habitation,
+                "word_no": address.word_no,
+                "zone_no": address.zone_no,
+                "block": address.block,
+                "district": address.district,
+                "division": address.division,
+                "area_code": address.area_code,
+                "address_line": address.address_line,
+                "country": address.country.id if address.country else None,
+                "state": address.state.id if address.state else None,
+                "city": address.city.id if address.city else None,
+            }
+        return None
+
+    def get_banking_detail(self, obj):
+        banking = getattr(obj.user, 'bankingdetail', None)
+        if banking:
+            return {
+                "account_no": banking.account_no,
+                "ifsc_code": banking.ifsc_code,
+                "holder_name": banking.holder_name,
+            }
+        return None
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        user = instance.user
+        rep['first_name'] = user.first_name
+        rep['middle_name'] = user.middle_name
+        rep['last_name'] = user.last_name
+        rep['email'] = user.email
+        rep['user_profile'] = user.user_profile.url if user.user_profile else None
+
+        # Add nested address and banking data
+        rep['address'] = self.get_address(instance)
+        rep['banking_detail'] = self.get_banking_detail(instance)
+
+        return rep
 
     def create(self, validated_data):
+        from director.serializers import BankingDetailsSerializer
+        # Extract user data
         user_data = {
             'first_name': validated_data.pop('first_name', ''),
             'middle_name': validated_data.pop('middle_name', ''),
             'last_name': validated_data.pop('last_name', ''),
-            'password': validated_data.pop('password', None),
             'email': validated_data.pop('email'),
+            'password': validated_data.pop('password', None),
             'user_profile': validated_data.pop('user_profile', None),
         }
+
         classes_data = validated_data.pop('classes', [])
 
-        try:
-            role, _ = Role.objects.get_or_create(name='student')
-        except MultipleObjectsReturned:
-            raise serializers.ValidationError("Multiple 'student' roles exist. Please fix your roles table.")
+        # Extract address data
+        address_data = {
+            'house_no': validated_data.pop('house_no', None),
+            'habitation': validated_data.pop('habitation', None),
+            'word_no': validated_data.pop('word_no', None),
+            'zone_no': validated_data.pop('zone_no', None),
+            'block': validated_data.pop('block', None),
+            'district': validated_data.pop('district', None),
+            'division': validated_data.pop('division', None),
+            'area_code': validated_data.pop('area_code', None),
+            'address_line': validated_data.pop('address_line', None),
+            'country': validated_data.pop('country', None),
+            'state': validated_data.pop('state', None),
+            'city': validated_data.pop('city', None),
+        }
+        address_data = {k: v for k, v in address_data.items() if v is not None}
 
-        user = User.objects.filter(email=user_data['email']).first()
+        # Extract banking data
+        banking_data = {
+            'account_no': validated_data.pop('account_no', None),
+            'ifsc_code': validated_data.pop('ifsc_code', None),
+            'holder_name': validated_data.pop('holder_name', None),
+        }
+        banking_data = {k: v for k, v in banking_data.items() if v is not None}
 
-        if user:
-            if not user.role.filter(name='student').exists():
-                user.role.add(role)
-                user.save()
-            else:
-                raise serializers.ValidationError("User with this email already exists and is a student.")
-        else:
-            user = User.objects.create_user(**user_data)
-            user.role.add(role)
-            user.save()
+        # Check for existing user email
+        if User.objects.filter(email=user_data['email']).exists():
+            raise serializers.ValidationError("User with this email already exists.")
 
+        # Create User
+        role, _ = Role.objects.get_or_create(name='student')
+        user = User.objects.create_user(**user_data)
+        user.role.add(role)
+
+        # Create Address
+        if address_data:
+            address_data['user'] = user
+            Address.objects.create(**address_data)
+
+        # Create Banking Details
+        if banking_data:
+            banking_data['user'] = user
+            banking_serializer = BankingDetailsSerializer(data=banking_data, context={'user': user})
+            banking_serializer.is_valid(raise_exception=True)
+            banking_serializer.save()
+
+        # Create Student
         student = Student.objects.create(user=user, **validated_data)
         student.classes.set(classes_data)
+
         return student
 
-    def update(self, instance, validated_data):
-        user = instance.user
-
-        # Update user fields
-        user.first_name = validated_data.get('first_name', user.first_name)
-        user.middle_name = validated_data.get('middle_name', user.middle_name or '')
-        user.last_name = validated_data.get('last_name', user.last_name)
-        user.email = validated_data.get('email', user.email)
-
-        if 'password' in validated_data:
-            user.set_password(validated_data['password'])
-
-        user_profile = validated_data.get('user_profile', None)
-        if user_profile is not None:
-            user.user_profile = user_profile
-
-        try:
-            user.save()
-        except IntegrityError:
-            raise serializers.ValidationError("A user with this email already exists.")
-
-        # Update student fields
-        instance.date_of_birth = validated_data.get('date_of_birth', instance.date_of_birth)
-        instance.gender = validated_data.get('gender', instance.gender)
-        instance.enrolment_date = validated_data.get('enrolment_date', instance.enrolment_date)
-
-        if 'classes' in validated_data:
-            instance.classes.set(validated_data.get('classes', []))
-
-        instance.save()
-        return instance
-
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        representation.update({
-            'first_name': instance.user.first_name,
-            'middle_name': instance.user.middle_name,
-            'last_name': instance.user.last_name,
-            'email': instance.user.email,
-            'user_profile': instance.user.user_profile.url if instance.user.user_profile else None,
-            'classes': [cp.id for cp in instance.classes.all()],
-        })
-        return representation
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -120,280 +232,116 @@ class RoleSerializer(serializers.ModelSerializer):
         fields = ["id", "name"]
 
 
-# class StudentListSerilaizer(serializers.Serializer):
-#     email = serializers.EmailField()
-#     guardian_type = serializers.CharField(max_length=100)
 
-
-# class GuardianSerializer(serializers.ModelSerializer):
-#     first_name = serializers.CharField(write_only=True, max_length=255)
-#     middle_name = serializers.CharField(
-#         write_only=True, max_length=255, allow_blank=True
-#     )
-#     last_name = serializers.CharField(write_only=True, max_length=255)
-#     email = serializers.EmailField(write_only=True)
-#     password = serializers.CharField(write_only=True,required=False)
-#     # students = StudentListSerilaizer(many=True, required=False)
-
-#     class Meta:
-#         model = Guardian
-#         exclude = ["user"]
-
-#     def create(self, validated_data):
-
-#         user_data = {
-#             "first_name": validated_data.pop("first_name", ""),
-#             "middle_name": validated_data.pop("middle_name", ""),
-#             "last_name": validated_data.pop("last_name", ""),
-#             "email": validated_data.pop("email", ""),
-#             "password": validated_data.pop("password", ""),
-#         }
-
-#         guardian_data = {"phone_no": validated_data.pop("phone_no", "")}
-#         students_data = validated_data.pop("students", [])
-
-#         try:
-#             role_guardian, _ = Role.objects.get_or_create(name="guardian")
-
-#         except MultipleObjectsReturned:
-#             raise serializers.ValidationError("somthing went wrong!")
-
-#         user_instance = User.objects.filter(email=user_data["email"]).first()
-
-#         if user_instance:
-
-#             if user_instance.role.filter(name="guardian").exists():
-
-#                 raise serializers.ValidationError(
-#                     {"message": "User with this email already exists as a guardian."}
-#                 )
-
-#             else:
-
-#                 user_instance.role.add(role_guardian)
-#                 guardian_profile = Guardian.objects.create(
-#                     user=user_instance, **guardian_data
-#                 )
-#                 return guardian_profile
-#         else:
-
-#             user_instance = User.objects.create_user(**user_data)
-
-#             user_instance.role.add(role_guardian)
-#             guardian_profile = Guardian.objects.create(
-#                 user=user_instance, **guardian_data
-#             )
-
-#             for student_data in students_data:
-#                 guardian_type_name = student_data.get("guardian_type")
-#                 student_email = student_data.get("email")
-
-#                 try:
-#                     student = Student.objects.get(user__email=student_email)
-
-#                 except Student.DoesNotExist:
-#                     raise serializers.ValidationError(
-#                         {"message": f"student with '{student_email}' does not exist"}
-#                     )
-
-#                 # try:
-#                 #     guardian_type, _ = GuardianType.objects.get_or_create(
-#                 #         name=guardian_type_name
-#                 #     )
-
-#                 # except Exception as e:
-#                 #     raise serializers.ValidationError(
-#                 #         {"message": f"Can't create GuardianType: {str(e)}"}
-#                 #     )
-
-#             #     try:
-#             #         StudentGuardian.objects.create(
-#             #             student=student,
-#             #             guardian_type=guardian_type,
-#             #             guardian=guardian_profile,
-#             #         )
-
-#             #     except Exception as e:
-#             #         raise serializers.ValidationError(
-#             #             {"message": f"Can't Establish Relation: {str(e)}"}
-#             #         )
-#             # return guardian_profile
-
-#     def to_representation(self, instance):
-#         representation = super().to_representation(instance)
-#         user_data = {
-#             "first_name": instance.user.first_name,
-#             "middle_name": instance.user.middle_name,
-#             "last_name": instance.user.last_name,
-#             "email": instance.user.email,
-#             "phone_no": representation.pop("phone_no", ""),
-#             # "students": [],
-#         }
-#         related_student_gaurdian = instance.studentguardian_set.all()
-#         for student_gaurdian in related_student_gaurdian:
-#             student_data = {
-#                 "email": student_gaurdian.student.user.email,
-#                 "guardian_type": student_gaurdian.guardian_type.name,
-#             }
-#             user_data["students"].append(student_data)
-
-#         return user_data
-
-#     def update(self, instance, validated_data):
-#         instance.phone_no = validated_data.get("phone_no", instance.phone_no)
-#         user_data = {
-#             "first_name": validated_data.get("first_name", instance.user.first_name),
-#             "middle_name": validated_data.get("middle_name", instance.user.middle_name),
-#             "last_name": validated_data.get("last_name", instance.user.last_name),
-#             "email": validated_data.get("email", instance.user.email),
-#             "password": validated_data.get("password", instance.user.password),
-#         }
-
-#         user_instance = instance.user
-#         user_instance.first_name = user_data["first_name"]
-#         user_instance.middle_name = user_data["middle_name"]
-#         user_instance.last_name = user_data["last_name"]
-#         user_instance.email = user_data["email"]
-#         user_instance.set_password(validated_data.get("password"))
-#         try:
-#             user_instance.save()
-#             instance.save()
-
-#         except User.DoesNotExist:
-#             raise serializers.ValidationError(
-#                 {"Message": "User doesn't exist with this email!"}
-#             )
-
-#         except IntegrityError:
-#             raise serializers.ValidationError(
-#                 {"Integrity Error": " Unable to update Data"}
-#             )
-
-#         except Exception:
-#             raise serializers.ValidationError({"Message": "Somthing went wrong"})
-#         return instance
 
 
 class GuardianSerializer(serializers.ModelSerializer):
+    # User Info (write_only on input)
     first_name = serializers.CharField(max_length=100, write_only=True)
     middle_name = serializers.CharField(max_length=100, write_only=True, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=100, write_only=True)
     password = serializers.CharField(max_length=100, write_only=True, required=False)
     email = serializers.EmailField(write_only=True)
-    phone_no = serializers.CharField(max_length=50, write_only=True)
     user_profile = serializers.ImageField(required=False, allow_null=True, write_only=True)
     
+    # Guardian Fields (include here)
+    phone_no = serializers.CharField(max_length=50)
+    annual_income = serializers.IntegerField()
+    means_of_livelihood = serializers.ChoiceField(choices=[('Govt', 'Government'), ('Non-Govt', 'Non-Government')], default='Govt')
+    qualification = serializers.CharField(max_length=300)
+    occupation = serializers.CharField(max_length=300)
+    designation = serializers.CharField(max_length=300)
+
     class Meta:
         model = Guardian
-        exclude = ["user"]  
-    
+        exclude = ["user"]
+
     def create(self, validated_data):
         user_data = {
             "first_name": validated_data.pop("first_name"),
-            "middle_name": validated_data.pop("middle_name", None),
+            "middle_name": validated_data.pop("middle_name", ""),
             "last_name": validated_data.pop("last_name"),
             "password": validated_data.pop("password", None),
             "email": validated_data.pop("email"),
-            "user_profile": validated_data.pop("user_profile"),
+            "user_profile": validated_data.pop("user_profile", None),
         }
 
-        try:
-            user = User.objects.filter(email=user_data["email"]).first()
+        phone_no = validated_data.pop('phone_no')
+        annual_income = validated_data.pop('annual_income')
+        means_of_livelihood = validated_data.pop('means_of_livelihood', 'Govt')
+        qualification = validated_data.pop('qualification')
+        occupation = validated_data.pop('occupation')
+        designation = validated_data.pop('designation')
 
-            if user:
-                if not hasattr(user, 'guardian_relation'):
-                    # Create a new Guardian if the user doesn't already have one
-                    guardian = Guardian.objects.create(user=user, **validated_data)
-                else:
-                    raise serializers.ValidationError("User already has a guardian.")
-            else:
-                # Create a new User and Guardian if the user does not exist
-                user = User.objects.create_user(**user_data)
-                guardian = Guardian.objects.create(user=user, **validated_data)
+        if User.objects.filter(email=user_data["email"]).exists():
+            raise serializers.ValidationError("User with this email already exists.")
 
-            guardian.save()
-            return guardian
+        role, _ = Role.objects.get_or_create(name='guardian')
+        user = User.objects.create_user(**user_data)
+        user.role.add(role)
 
-        except IntegrityError:
-            raise serializers.ValidationError("Guardian with this email already exists.")
-    
+        guardian = Guardian.objects.create(
+            user=user,
+            phone_no=phone_no,
+            annual_income=annual_income,
+            means_of_livelihood=means_of_livelihood,
+            qualification=qualification,
+            occupation=occupation,
+            designation=designation,
+            **validated_data
+        )
+
+        return guardian
+
     def update(self, instance, validated_data):
-        user_data = validated_data.pop("user", {})
-        email = user_data.get("email")
+        user = instance.user
 
-        try:
-            if email:
-                user_instance = User.objects.get(email=email)
-                instance.user.email = email
-            
-            instance.user.first_name = validated_data.get(
-                "first_name", instance.user.first_name
-            )
-            instance.user.middle_name = validated_data.get(
-                "middle_name", instance.user.middle_name
-            )
-            instance.user.last_name = validated_data.get(
-                "last_name", instance.user.last_name
-            )
+        # Update user fields
+        user.first_name = validated_data.get('first_name', user.first_name)
+        user.middle_name = validated_data.get('middle_name', user.middle_name)
+        user.last_name = validated_data.get('last_name', user.last_name)
+        password = validated_data.get('password', None)
+        if password:
+            user.set_password(password)
+        user.email = validated_data.get('email', user.email)
+        user_profile = validated_data.get('user_profile', None)
+        if user_profile is not None:
+            user.user_profile = user_profile
+        user.save()
 
-            instance.user.set_password(validated_data.get("password"))
-            user_profile = validated_data.get('user_profile', None)
-            if user_profile is not None:
-                instance.user.user_profile = user_profile
-            instance.user.email = validated_data.get("email", instance.user.email)
-            instance.phone_no = validated_data.get(
-                "phone_no", instance.phone_no
-            )
+        # Update guardian fields
+        instance.phone_no = validated_data.get('phone_no', instance.phone_no)
+        instance.annual_income = validated_data.get('annual_income', instance.annual_income)
+        instance.means_of_livelihood = validated_data.get('means_of_livelihood', instance.means_of_livelihood)
+        instance.qualification = validated_data.get('qualification', instance.qualification)
+        instance.occupation = validated_data.get('occupation', instance.occupation)
+        instance.designation = validated_data.get('designation', instance.designation)
+        instance.save()
 
-            instance.user.save()
-            instance.save()
-
-            return instance
-
-        except User.DoesNotExist:
-            raise serializers.ValidationError(
-                "User with provided email does not exist."
-            )
-        except IntegrityError:
-            raise serializers.ValidationError(
-                "User data could not be updated. Guardian email already exists."
-            )
+        return instance
 
     def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        representation.update(
-            {
-                "first_name": instance.user.first_name,
-                "middle_name": instance.user.middle_name,
-                "last_name": instance.user.last_name,
-                "email": instance.user.email,
-                "phone_no": instance.phone_no,
-                'user_profile': instance.user.user_profile.url if instance.user.user_profile else None,
-            }
-        )
-        return representation
+        rep = super().to_representation(instance)
+        user = instance.user
+        rep.update({
+            "first_name": user.first_name,
+            "middle_name": user.middle_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "phone_no": instance.phone_no,
+            "annual_income": instance.annual_income,
+            "means_of_livelihood": instance.means_of_livelihood,
+            "qualification": instance.qualification,
+            "occupation": instance.occupation,
+            "designation": instance.designation,
+            "user_profile": user.user_profile.url if user.user_profile else None,
+        })
+        return rep
 
 
 
 
-# # Fee Submission Serializer as of 07May25 at 12:34 PM
 
-# class FeeSubmissionSerializer(serializers.Serializer):
-#     account_no = serializers.IntegerField()
-#     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
-#     payment_method = serializers.ChoiceField(choices=['cash', 'online', 'cheque'])
-
-#     def validate_account_no(self, value):
-#         if not BankingDetail.objects.filter(account_no=value).exists():
-#             raise serializers.ValidationError("Invalid account number.")
-#         return value
-
-# # json for fee
-# # {
-# #   "account_no": 123456789012,
-# #   "amount": "2000.00",
-# #   "payment_method": "online"
-# # }
 
     
 #     class Meta:
@@ -403,3 +351,19 @@ class GuardianSerializer(serializers.ModelSerializer):
 #     # 'password': {'write_only': True},
 #         # }    
         
+
+## As of 29May25 at 02:30 PM
+class StudentYearLevelSerializer(serializers.ModelSerializer):
+    student_name = serializers.SerializerMethodField()
+    level_name = serializers.CharField(source='level.level_name', read_only=True)
+    year_name = serializers.CharField(source='year.year_name', read_only=True)
+
+    def get_student_name(self, obj):
+        first_name = obj.student.user.first_name or ''
+        last_name = obj.student.user.last_name or ''
+        return f"{first_name} {last_name}".strip()
+
+    class Meta:
+        model = StudentYearLevel
+        fields = ['id', 'student_name', 'level_name', 'year_name']
+

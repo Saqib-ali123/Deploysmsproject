@@ -13,3 +13,16 @@ class StudentAttendanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentAttendance
         fields = '__all__'
+        
+        
+
+class StudentAttendancePercentSerializer(serializers.Serializer):
+    student_name = serializers.CharField()
+    class_name = serializers.CharField()
+    monthly_percentage = serializers.FloatField()
+    yearly_percentage = serializers.FloatField()
+    
+    
+
+
+
