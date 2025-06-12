@@ -1,5 +1,8 @@
 from django.urls import path,include
 from .views import *
+from director.views import Director_Dashboard_Summary
+
+
 from rest_framework.routers import DefaultRouter
 
 
@@ -36,7 +39,12 @@ urlpatterns = [
     path("classroom-type/<int:pk>/", ClassRoomTypeView),
     path("roles/", RoleView, name="roleDetails"),
     path("role/<int:pk>/", RoleView, name="roleDetails"),
-    path('', include(router.urls)), 
+    path("director-dashboard/", Director_Dashboard_Summary),
+    path("teacher-dashboard/<int:id>/", teacher_dashboard),
+    path("guardian-dashboard/<int:id>/", guardian_dashboard),
+    path('office-staff-dashboard/', office_staff_dashboard),
+    path('office-staff-dashboard/<int:id>/', office_staff_dashboard),
+    path('', include(router.urls)),
     # path('submit-fee/', FeeView.as_view(), name='submit-fee'),
     # path("fee_submission/<int:student_id>/", FeeSubmissionView.as_view(), name='fee-submission'),
 ]
