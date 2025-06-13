@@ -1,3 +1,4 @@
+from datetime import date
 from rest_framework import serializers
 from .models import *
 from django.core.exceptions import MultipleObjectsReturned
@@ -7,11 +8,10 @@ from student.serializers import *
 from uuid import uuid4
 
 
-class YearLevelSerializer(serializers.ModelSerializer):
+class YearLevelSerializer(serializers.ModelSerializer):   # coomented as of 05June25 at 01:36 AM
     class Meta:
         model = YearLevel
         fields = "__all__"
-
 
 class SchoolYearSerializer(serializers.ModelSerializer):
     class Meta:
@@ -501,10 +501,10 @@ class ClassPeriodSerializer(serializers.ModelSerializer):
     
 
 # As of 08may25 at 11:41 AM
-class FeeTypeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FeeType
-        fields = ['id', 'name', 'description']
+# class FeeTypeSerializer(serializers.ModelSerializer):     #commented as of 04June25 at 12:00 AM
+#     class Meta:
+#         model = FeeType
+#         fields = ['id', 'name', 'description']
         
         
 # commented as of 17May25 at 02:00 PM
@@ -514,14 +514,14 @@ class FeeTypeSerializer(serializers.ModelSerializer):
 #         fields = ['id', 'year_level', 'term', 'fee_type','total_fee']
 
 # Added this as of 17May25 at 02:00 PM to fetch names instead of ids
-class FeeStructureSerializer(serializers.ModelSerializer):
-    year_level = serializers.CharField(source='year_level.level_name')
-    term = serializers.CharField(source='term.term_number')
-    fee_type = serializers.CharField(source='fee_type.name')
+# class FeeStructureSerializer(serializers.ModelSerializer):    ##commented as of 04June25 at 12:00 AM
+#     year_level = serializers.CharField(source='year_level.level_name')
+#     term = serializers.CharField(source='term.term_number')
+#     fee_type = serializers.CharField(source='fee_type.name')
 
-    class Meta:
-        model = FeeStructure
-        fields = ['id', 'year_level', 'term', 'fee_type', 'total_fee']
+#     class Meta:
+#         model = FeeStructure
+#         fields = ['id', 'year_level', 'term', 'fee_type', 'total_fee']
 
         
 # commented as of 17May25 at 02:00 PM
@@ -534,27 +534,27 @@ class FeeStructureSerializer(serializers.ModelSerializer):
 #         ]
 
 # Added this as of 17May25 at 02:00 PM to fetch names instead of ids
-class FeeSubmitSerializer(serializers.ModelSerializer):
-    student = serializers.SerializerMethodField()
-    fee_structure = serializers.SerializerMethodField()
-    fee_type = serializers.CharField(source='fee_type.name')
+# class FeeSubmitSerializer(serializers.ModelSerializer):       ##commented as of 04June25 at 12:00 AM
+#     student = serializers.SerializerMethodField()
+#     fee_structure = serializers.SerializerMethodField()
+#     fee_type = serializers.CharField(source='fee_type.name')
 
-    class Meta:
-        model = Fee
-        fields = [
-            'id', 'student', 'fee_structure', 'fee_type',
-            'amount_paid', 'payment_mode', 'remarks', 'receipt_number'
-        ]
+#     class Meta:
+#         model = Fee
+#         fields = [
+#             'id', 'student', 'fee_structure', 'fee_type',
+#             'amount_paid', 'payment_mode', 'remarks', 'receipt_number'
+#         ]
         
-    def get_student(self, obj):
-        return str(obj.student)
+#     def get_student(self, obj):
+#         return str(obj.student)
 
 
-    def get_fee_structure(self, obj):     # commented as of 28May25 at 02:00 PM
-        if obj.fee_structure:
-            # return f"{obj.fee_structure.year_level.level_name} - {obj.fee_structure.term.term_number}"
-            return f"{obj.fee_structure.year_level.level_name}"
-        return None
+#     def get_fee_structure(self, obj):     # commented as of 28May25 at 02:00 PM
+#         if obj.fee_structure:
+#             # return f"{obj.fee_structure.year_level.level_name} - {obj.fee_structure.term.term_number}"
+#             return f"{obj.fee_structure.year_level.level_name}"
+#         return None
 
     # def to_representation(self, instance):     # commented as of 28May25 at 02:00 PM
     #     representation = super().to_representation(instance)
@@ -593,14 +593,205 @@ class FeeSubmitSerializer(serializers.ModelSerializer):
     #     representation.pop("guardian", None)
 
     #     return representation
+    
+# As of 04June2025 at 12:15 AM
+# Re-implementation of Fee module based on the provided fee card
+from django.utils import timezone
+from decimal import Decimal
+from collections import defaultdict
+from django.db.models import Max
+
+
+# Added as of 06June25 at 02:50 PM
+
+class FeeTypeSerializer(serializers.ModelSerializer):
+    # name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = FeeType
+        fields = ['id', 'name']
+
+
+class YearLevelFeeSerializer(serializers.ModelSerializer):
+    year_level_name = serializers.SerializerMethodField()
+    fee_type_name = serializers.SerializerMethodField()
+    year_level_id = serializers.IntegerField(source='year_level.id', read_only=True)
+
+    class Meta:
+        model = YearLevelFee
+        fields = ['id', 'year_level', 'fee_type', 'year_level_name', 'fee_type_name', 'amount', 'year_level_id']
+
+    def get_year_level_name(self, obj):
+        return obj.year_level.level_name
+
+    def get_fee_type_name(self, obj):
+        return obj.fee_type.name
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data.pop('year_level', None)
+        data.pop('fee_type', None)
+        return data
+ 
+    # Added this as of 11June25 at 11:39 AM
+    @staticmethod
+    def group_by_year_level(fees):
+        grouped_fees = {}
+        for fee in fees:
+            year_level_name = fee['year_level_name']
+            year_level_id = fee['year_level_id']
+            fee_data = {
+                'id': fee['id'],
+                'fee_type': fee['fee_type_name'],
+                'amount': fee['amount']
+            }
+
+            # Use a tuple key to keep both id and name
+            key = (year_level_id, year_level_name)
+
+            if key not in grouped_fees:
+                grouped_fees[key] = {
+                    'id': year_level_id,
+                    'year_level': year_level_name,
+                    'fees': []
+                }
+
+            grouped_fees[key]['fees'].append(fee_data)
+
+        return list(grouped_fees.values())
 
 
 
-class RazorpayPaymentInitiateSerializer(serializers.Serializer):
-    student_id = serializers.IntegerField()
-    fee_structure_id = serializers.IntegerField()
-    fee_type_id = serializers.IntegerField()
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+### just added to submit fee for multiple months as of 09Jun25 at 06:53 PM
+class FeeRecordSerializer(serializers.ModelSerializer):
+    student = serializers.SerializerMethodField()
+    student_id = serializers.PrimaryKeyRelatedField(queryset=Student.objects.all(), source='student', write_only=True)
+    year_level_fees = serializers.PrimaryKeyRelatedField(queryset=YearLevelFee.objects.all(), many=True, write_only=True)
+    year_level_fees_grouped = serializers.SerializerMethodField(read_only=True)
+
+    total_amount = serializers.DecimalField(max_digits=8, decimal_places=2, read_only=True)
+    paid_amount = serializers.DecimalField(max_digits=8, decimal_places=2)
+    due_amount = serializers.DecimalField(max_digits=8, decimal_places=2, read_only=True)
+    late_fee = serializers.DecimalField(max_digits=8, decimal_places=2, read_only=True)
+    payment_date = serializers.DateField(read_only=True)
+    receipt_number = serializers.CharField(read_only=True)
+    payment_status = serializers.CharField(max_length=20, read_only=True)
+    remarks = serializers.CharField(max_length=255)
+    signature = serializers.CharField(max_length=100)
+
+    month = serializers.ChoiceField(choices=FeeRecord.MONTH_CHOICES)
+
+    class Meta:
+        model = FeeRecord
+        fields = [
+            'id', 'student', 'student_id', 'month', 'year_level_fees', 'year_level_fees_grouped',
+            'total_amount', 'paid_amount', 'due_amount', 'payment_date', 'payment_mode', 'receipt_number',
+            'late_fee', 'payment_status', 'remarks', 'signature'
+        ]
+        read_only_fields = ['receipt_number', 'payment_date', 'total_amount', 'due_amount', 'late_fee']
+
+    def get_student(self, obj):
+        return {
+            "id": obj.student.id,
+            "name": f"{obj.student.user.first_name} {obj.student.user.last_name}"
+        }
+
+    def get_year_level_fees_grouped(self, obj):
+        grouped = defaultdict(list)
+        for fee in obj.year_level_fees.all():
+            year_level_name = fee.year_level.level_name
+            grouped[year_level_name].append({
+                "id": fee.id,
+                "fee_type": fee.fee_type.name,
+                "amount": str(fee.amount),
+            })
+        return [{"year_level": yl, "fees": fees} for yl, fees in grouped.items()]
+    
+    def validate(self, data):
+        student = data.get('student')
+        month = data.get('month')
+        year_level_fees = data.get('year_level_fees', [])
+        paid_amount = data.get('paid_amount', 0)
+        # total_amount = data.get('total_amount',0)   # Added as of 09June25
+
+        # Prevent duplicate fee entry for same student + month
+        if self.instance is None:  # Only during creation
+            if FeeRecord.objects.filter(student=student, month=month).exists():
+                raise serializers.ValidationError(f"Fee already submitted for {month} month for this student.")
+
+        # Validate fees
+        if not year_level_fees:
+            raise serializers.ValidationError("At least one year level fee must be selected.")
+
+        total = 0
+        for fee in year_level_fees:
+            total += fee.amount
+
+        data['total_amount'] = total
+
+        today = date.today()
+        data['late_fee'] = 25 if today.day > 15 else 0
+
+        due = total + data['late_fee'] - paid_amount
+        data['due_amount'] = due if due > 0 else 0
+
+        return data
+
+    def create(self, validated_data):
+        year_level_fees = validated_data.pop('year_level_fees')
+        validated_data['payment_date'] = date.today()
+
+        fee_record = FeeRecord.objects.create(**validated_data)
+        fee_record.year_level_fees.set(year_level_fees)
+        return fee_record           # here ends
+
+
+### Razorpay Functionality Added as of 10Jun25
+
+class FeeRecordRazorpaySerializer(serializers.ModelSerializer):
+    student_id = serializers.PrimaryKeyRelatedField(queryset=Student.objects.all(), source='student', write_only=True)
+    year_level_fees = serializers.PrimaryKeyRelatedField(queryset=YearLevelFee.objects.all(), many=True)
+    
+    class Meta:
+        model = FeeRecord
+        fields = [
+            'id', 'student_id', 'month', 'year_level_fees', 'total_amount', 'paid_amount', 'due_amount',
+            'late_fee', 'payment_mode', 'payment_status', 'remarks', 'signature',
+            'razorpay_order_id', 'razorpay_payment_id', 'razorpay_signature_id'
+        ]
+        read_only_fields = ['total_amount', 'due_amount', 'late_fee', 'payment_status', 'razorpay_payment_id', 'razorpay_signature_id']
+
+    def validate(self, data):
+        student = data.get('student')
+        month = data.get('month')
+        year_level_fees = data.get('year_level_fees', [])
+        paid_amount = data.get('paid_amount', Decimal("0.00"))
+
+        if FeeRecord.objects.filter(student=student, month=month).exists():
+            # raise serializers.ValidationError("Fee already submitted for this month.")
+            raise serializers.ValidationError(f"Fee already submitted for {month} month for this student.")
+
+        if not year_level_fees:
+            raise serializers.ValidationError("At least one year level fee must be selected.")
+
+        total = sum(fee.amount for fee in year_level_fees)
+        late_fee = Decimal("25.00") if date.today().day > 15 else Decimal("0.00")
+        due_amount = total + late_fee - paid_amount
+
+        data['total_amount'] = total
+        data['late_fee'] = late_fee
+        data['due_amount'] = due_amount if due_amount > 0 else Decimal("0.00")
+
+        return data
+
+
+
+### Previous Razorpay Code commented as of 10June25
+# class RazorpayPaymentInitiateSerializer(serializers.Serializer):
+#     student_id = serializers.IntegerField()
+#     fee_structure_id = serializers.IntegerField()
+#     fee_type_id = serializers.IntegerField()
+#     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 
 

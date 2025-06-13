@@ -37,7 +37,7 @@ class Student(models.Model):
     )
 
     def __str__(self):
-        return f"{self.user.first_name} {self.user.last_name} {self.user.email}"
+        return f"{self.user.first_name} {self.user.last_name} "
 
     class Meta:
         verbose_name = "Student"
@@ -113,7 +113,7 @@ class StudentYearLevel(models.Model):
     year = models.ForeignKey("director.SchoolYear", on_delete=models.DO_NOTHING)
 
     def __str__(self):
-        return f"{self.student} - {self.level} - {self.year}"
+        return f"{self.student} - {self.level} "
 
     class Meta:
         verbose_name = "StudentYearLevel"

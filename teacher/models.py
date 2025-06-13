@@ -11,6 +11,7 @@ class Teacher(models.Model):
     adhaar_no = models.BigIntegerField(null=True,blank=True)
     pan_no = models.BigIntegerField(null=True,blank=True)
     qualification = models.CharField(max_length=250)
+
     year_levels = models.ManyToManyField('director.YearLevel', through='TeacherYearLevel')
     
     
@@ -27,3 +28,4 @@ class TeacherYearLevel(models.Model):
 
     def __str__(self):
         return f"{self.teacher} - {self.year_level}"    
+
