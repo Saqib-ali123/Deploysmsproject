@@ -412,28 +412,6 @@ class FeeRecord(models.Model):
 
 
 
-### Admission shifted here as of 04June25 at 03:53 PM
-
-class Admission(models.Model):
-    id = models.AutoField(primary_key=True)
-    student = models.ForeignKey(Student,on_delete=models.DO_NOTHING,)
-    admission_date = models.DateField()
-    previous_school_name = models.CharField(max_length=200)
-    previous_standard_studied = models.CharField(max_length=200)
-    tc_letter = models.CharField(max_length=200)
-    guardian = models.ForeignKey(Guardian,on_delete=models.DO_NOTHING)
-    year_level = models.ForeignKey(YearLevel,on_delete=models.DO_NOTHING)
-    school_year = models.ForeignKey(SchoolYear,on_delete=models.DO_NOTHING)
-    # total_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))  #Added as of 08May25
-    
-
-    def __str__(self):
-        return f"{self.student} - {self.admission_date}"
-
-    class Meta:
-        verbose_name = "Admission"
-        verbose_name_plural = "Admissions"
-        db_table = "Admission"
 
 
 
