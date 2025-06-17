@@ -1,6 +1,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-
+from django.db.models import Count
+from collections import OrderedDict
 from .serializers import *
 from rest_framework import status
 from rest_framework import viewsets
@@ -14,6 +15,9 @@ from rest_framework.decorators import action
 # import razorpay
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from datetime import datetime
+client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
+
 import random
 import string
 
@@ -27,6 +31,215 @@ def generate_receipt_number():
             code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
             if not FeeRecord.objects.filter(receipt_number=code).exists():
                 return code
+
+
+#   ---------------------------------------------  Director Dashboard view   ----------------------------------------------------------
+
+
+@api_view(["GET"])
+def Director_Dashboard_Summary(request):
+    #  Check if director with given id exists
+    # try:
+    #     # director = Director.objects.get(id=id)
+    # except Director.DoesNotExist:
+    #     return Response({"error": "Director not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Continue if director exists
+    current_year = datetime.now().year
+
+    summary = {
+        "new_admissions": Admission.objects.filter(admission_date__year=current_year).count(),
+        "students": Student.objects.count(),
+        "teachers": Teacher.objects.count()
+    }
+
+    student_total = summary["students"]
+    teacher_total = summary["teachers"]
+
+    student_male = Student.objects.filter(gender__iexact="Male").count()
+    student_female = Student.objects.filter(gender__iexact="Female").count()
+
+    teacher_male = Teacher.objects.filter(gender__iexact="Male").count()
+    teacher_female = Teacher.objects.filter(gender__iexact="Female").count()
+
+    def get_percentage(count, total):
+        return round((count / total) * 100, 2) if total else 0
+
+    gender_distribution = {
+        "students": {
+            "count": {
+                "male": student_male,
+                "female": student_female
+            },
+            "percentage": {
+                "male": get_percentage(student_male, student_total),
+                "female": get_percentage(student_female, student_total)
+            },
+            # "total": student_total
+        },
+        "teachers": {
+            "count": {
+                "male": teacher_male,
+                "female": teacher_female
+            },
+            "percentage": {
+                "male": get_percentage(teacher_male, teacher_total),
+                "female": get_percentage(teacher_female, teacher_total)
+            },
+            # "total": teacher_total
+        }
+    }
+
+    class_data = StudentYearLevel.objects.values("level__level_name").annotate(total=Count("student"))
+    class_strength = {entry["level__level_name"]: entry["total"] for entry in class_data}
+
+
+    school_years = SchoolYear.objects.order_by("start_date")
+    students_per_year = OrderedDict()
+
+    for year in school_years:
+        year_range = f"{year.start_date.year}-{year.end_date.year}"
+        count = StudentYearLevel.objects.filter(year=year).count()
+        students_per_year[year_range] = count
+
+    return Response({
+        # "director_id": id,
+        "summary": summary,
+        "gender_distribution": gender_distribution,
+        "class_strength": class_strength,
+        "students_per_year": students_per_year
+    })
+
+
+# ---------------------------------------------------------   Teacher Dashboard View  ----------------------------------------------------------
+ 
+
+@api_view(["GET"])
+def teacher_dashboard(request, id):
+    try:
+        user = User.objects.get(id=id)
+        teacher = user.teacher
+    except User.DoesNotExist:
+        return Response({"error": "User not found"}, status=404)
+    except Teacher.DoesNotExist:
+        return Response({"error": "This user is not a teacher"}, status=400)
+
+    periods = ClassPeriod.objects.filter(teacher=teacher)
+    class_data = []
+
+    for period in periods:
+        students = Student.objects.filter(classes=period).distinct()
+
+        # Fetch YearLevel names for these students
+        year_levels = YearLevel.objects.filter(
+            studentyearlevel__student__in=students
+        ).distinct().values_list('level_name', flat=True)
+
+        class_data.append({
+            "class_period": period.name,
+            "subject": period.subject.subject_name,
+            "classroom": period.classroom.room_name,
+            "student_count": students.count(),
+             "level_name": ", ".join(year_levels) if year_levels else "N/A"
+        })
+
+    return Response({
+        "teacher": f"{teacher.user.first_name} {teacher.user.last_name}",
+        "total_classes": periods.count(),
+        "class_details": class_data
+    })
+
+#   -------------------------------------------  Guardian Dashboard  ----------------------------------------------------------
+
+
+@api_view(["GET"])
+def guardian_dashboard(request,id):
+    # Static Guardian (replace with auth user in production)
+    guardian = Guardian.objects.get(user_id=id)
+
+    student_links = StudentGuardian.objects.filter(guardian=guardian)
+    children_data = []
+
+    for link in student_links:
+        student = link.student
+
+        # Latest class info (YearLevel + SchoolYear)
+        year_level_info = StudentYearLevel.objects.filter(student=student).last()
+
+        children_data.append({
+            "student_name": f"{student.user.first_name} {student.user.last_name}",
+            "class": f"{year_level_info.level.level_name} ({year_level_info.year.year_name})" if year_level_info else "Not Assigned"
+        })
+
+    return Response({
+        "guardian": f"{guardian.user.first_name} {guardian.user.last_name}",
+        "total_children": student_links.count(),
+        "children": children_data
+    })
+
+# --------------------------------------------------------- office Staff Dashboard View  ----------------------------------------------------------
+
+@api_view(["GET"])
+def office_staff_dashboard(request, id=None):
+  
+    try:
+        user = User.objects.get(id=id)
+    except User.DoesNotExist:
+        return Response({"error": "User not found"}, status=404)
+
+    #  Get current date and academic year
+    current_date = datetime.now().date()
+    try:
+        current_school_year = SchoolYear.objects.get(
+            start_date__lte=current_date,
+            end_date__gte=current_date
+        )
+    except SchoolYear.DoesNotExist:
+        return Response({"error": "Current academic year not found"}, status=404)
+
+    # Count new admissions in current academic year
+    new_admissions_count = Admission.objects.filter(
+        admission_date__gte=current_school_year.start_date,
+        admission_date__lte=current_school_year.end_date
+    ).count()
+
+    # Admissions per year (trend)
+    admissions_by_year = Admission.objects.values("admission_date__year").annotate(
+        total=Count("id")
+    ).order_by("admission_date__year")
+
+    admissions_trend = {
+        str(entry["admission_date__year"]): entry["total"]
+        for entry in admissions_by_year
+    }
+
+
+    return Response({
+        "staff": f"{user.first_name} {user.last_name}",
+        "current_academic_year": f"{current_school_year.start_date.year}-{current_school_year.end_date.year}",
+        "new_admissions_this_year": new_admissions_count,
+        "admissions_per_year": admissions_trend
+    })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1120,6 +1333,7 @@ class FeeRecordView(viewsets.ModelViewSet):
             "message": "Payment successful and FeeRecord saved.",
             "receipt_number": fee_record.receipt_number
         }, status=status.HTTP_201_CREATED)
+
 
 
 

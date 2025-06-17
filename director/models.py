@@ -261,35 +261,32 @@ class ClassPeriod(models.Model):
 #     fee_type = models.ForeignKey(FeeType, on_delete=models.CASCADE)
 #     total_fee = models.DecimalField(max_digits=10, decimal_places=2)
 
-# class Admission(models.Model):
-#     student = models.ForeignKey(Student, on_delete=models.DO_NOTHING)
-#     admission_date = models.DateField(auto_now_add=True)
-#     previous_school_name = models.CharField(max_length=200)
-#     previous_standard_studied = models.CharField(max_length=200)
-#     tc_letter = models.CharField(max_length=200)
-#     guardian = models.ForeignKey(Guardian, on_delete=models.DO_NOTHING)
-#     year_level = models.ForeignKey('YearLevel', on_delete=models.DO_NOTHING)
-#     school_year = models.ForeignKey(SchoolYear, on_delete=models.DO_NOTHING)
-#     emergency_contact_n0 = models.CharField(max_length=100)
-#     entire_road_distance_from_home_to_school = models.CharField(max_length=100)
-#     obtain_marks = models.FloatField()
-#     total_marks = models.FloatField()
-#     previous_percentage = models.FloatField(blank=True, null=True)  # Allow null/blank since auto-calculated
 
-#     def save(self, *args, **kwargs):
-#         if self.total_marks > 0:
-#             self.previous_percentage = (self.obtain_marks / self.total_marks) * 100
-#         else:
-#             self.previous_percentage = 0  
-#         super().save(*args, **kwargs)
 
-# #     def __str__(self):
-# #         return f"{self.year_level} - {self.term} - {self.fee_type.name}"
+class Admission(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.DO_NOTHING)
+    admission_date = models.DateField(auto_now_add=True)
+    previous_school_name = models.CharField(max_length=200)
+    previous_standard_studied = models.CharField(max_length=200)
+    tc_letter = models.CharField(max_length=200)
+    guardian = models.ForeignKey(Guardian, on_delete=models.DO_NOTHING)
+    year_level = models.ForeignKey("director.YearLevel", on_delete=models.DO_NOTHING)
+    school_year = models.ForeignKey(SchoolYear, on_delete=models.DO_NOTHING)
+    emergency_contact_n0 = models.CharField(max_length=100)
+    entire_road_distance_from_home_to_school = models.CharField(max_length=100)
+    obtain_marks = models.FloatField()
+    total_marks = models.FloatField()
+    previous_percentage = models.FloatField(blank=True, null=True)  # Allow null/blank since auto-calculated
 
-# #     class Meta:
-# #         verbose_name = "FeeStructure"
-# #         verbose_name_plural = "FeeStructures"
-# #         db_table = "FeeStructure"
+    def save(self, *args, **kwargs):
+        if self.total_marks > 0:
+            self.previous_percentage = (self.obtain_marks / self.total_marks) * 100
+        else:
+            self.previous_percentage = 0  
+        super().save(*args, **kwargs)
+
+#     def __str__(self):
+#         return f"{self.year_level} - {self.term} - {self.fee_type.name}"
 
 #     class Meta:
 #         db_table = "Admission"
