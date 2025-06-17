@@ -267,7 +267,7 @@ class Admission(models.Model):
     previous_standard_studied = models.CharField(max_length=200)
     tc_letter = models.CharField(max_length=200)
     guardian = models.ForeignKey(Guardian, on_delete=models.DO_NOTHING)
-    year_level = models.ForeignKey('YearLevel', on_delete=models.DO_NOTHING)
+    year_level = models.ForeignKey(YearLevel, on_delete=models.DO_NOTHING)
     school_year = models.ForeignKey(SchoolYear, on_delete=models.DO_NOTHING)
     emergency_contact_n0 = models.CharField(max_length=100)
     entire_road_distance_from_home_to_school = models.CharField(max_length=100)
