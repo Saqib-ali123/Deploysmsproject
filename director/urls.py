@@ -49,6 +49,7 @@ urlpatterns = [
     path('office-staff-dashboard/', office_staff_dashboard),
     path('office-staff-dashboard/<int:id>/', office_staff_dashboard),
     path("student-dashboard/<int:id>/", student_dashboard),
+    path("director/fee-summary/", director_fee_summary),
     path('', include(router.urls)),
     # path('submit-fee/', FeeView.as_view(), name='submit-fee'),
     # path("fee_submission/<int:student_id>/", FeeSubmissionView.as_view(), name='fee-submission'),

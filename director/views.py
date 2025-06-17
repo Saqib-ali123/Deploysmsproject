@@ -12,6 +12,8 @@ from rest_framework .views import APIView       # As of 07May25 at 12:30 PM
 from rest_framework.filters import SearchFilter
 from django.db.models import Sum
 from rest_framework.decorators import action
+from django.db.models.functions import Coalesce
+from django.db.models import Sum, DecimalField
 import razorpay
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -256,8 +258,86 @@ def student_dashboard(request,id):
         "due_fee": float(due_amount)
     })
 
+# -------------------------------------------------  Fees summary view  ----------------------------------------------------------
 
 
+
+
+
+
+
+@api_view(["GET"])
+def director_fee_summary(request):
+    # Get optional filters from query params
+    month = request.GET.get("month")  # e.g., "June"
+    year = request.GET.get("year")    # e.g., "2025"
+
+    # School-level summary
+    total_students = Student.objects.count()
+
+    fee_qs = FeeRecord.objects.all()
+
+    if month and year:
+        fee_qs = fee_qs.filter(month=month, payment_date__year=year)
+    elif year:
+        fee_qs = fee_qs.filter(payment_date__year=year)
+
+    total_fee = fee_qs.aggregate(
+        total=Coalesce(Sum('total_amount', output_field=DecimalField()), Decimal("0.00"))
+    )['total']
+
+    total_paid = fee_qs.aggregate(
+        paid=Coalesce(Sum('paid_amount', output_field=DecimalField()), Decimal("0.00"))
+    )['paid']
+
+    total_due = fee_qs.aggregate(
+        due=Coalesce(Sum('due_amount', output_field=DecimalField()), Decimal("0.00"))
+    )['due']
+
+    # Class-wise summary
+    class_data = []
+    all_class_periods = ClassPeriod.objects.select_related('classroom__room_type').all()
+
+    for period in all_class_periods:
+        students_in_class = Student.objects.filter(classes=period).distinct()
+        student_ids = students_in_class.values_list('id', flat=True)
+
+        class_fee_qs = FeeRecord.objects.filter(student_id__in=student_ids)
+        if month and year:
+            class_fee_qs = class_fee_qs.filter(month=month, payment_date__year=year)
+
+        class_total_fee = class_fee_qs.aggregate(
+            total=Coalesce(Sum('total_amount', output_field=DecimalField()), Decimal("0.00"))
+        )['total']
+
+        class_total_paid = class_fee_qs.aggregate(
+            paid=Coalesce(Sum('paid_amount', output_field=DecimalField()), Decimal("0.00"))
+        )['paid']
+
+        class_total_due = class_fee_qs.aggregate(
+            due=Coalesce(Sum('due_amount', output_field=DecimalField()), Decimal("0.00"))
+        )['due']
+
+        class_data.append({
+            "class_name": f"{period.classroom.room_type} - {period.classroom.room_name}",
+            # "section": getattr(period, 'section', None),
+            "total_students": students_in_class.count(),
+            "total_fee": class_total_fee,
+            "paid_fee": class_total_paid,
+            "due_fee": class_total_due
+        })
+
+    data = {
+        "school_summary": {
+            "total_students": total_students,
+            "total_fee": total_fee,
+            "paid_fee": total_paid,
+            "due_fee": total_due,
+        },
+        "class_summary": class_data
+    }
+
+    return Response(data)
 
 
 
