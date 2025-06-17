@@ -12,7 +12,7 @@ from rest_framework .views import APIView       # As of 07May25 at 12:30 PM
 from rest_framework.filters import SearchFilter
 from django.db.models import Sum
 from rest_framework.decorators import action
-# import razorpay
+import razorpay
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from datetime import datetime
@@ -153,7 +153,7 @@ def teacher_dashboard(request, id):
 
 
 @api_view(["GET"])
-def guardian_dashboard(request,id):
+def guardian_dashboard(request,id=None):
     # Static Guardian (replace with auth user in production)
     guardian = Guardian.objects.get(user_id=id)
 
@@ -222,6 +222,39 @@ def office_staff_dashboard(request, id=None):
     })
 
 
+# --------------------------------------------------------- student dashboard View  ----------------------------------------------------------
+
+
+
+@api_view(["GET"])
+def student_dashboard(request,id):
+    try:
+        student = Student.objects.get(id=id)
+    except Student.DoesNotExist:
+        return Response({"error": "Student not found"}, status=404)
+
+    # Get admission
+    try:
+        admission = Admission.objects.get(student=student)
+    except Admission.DoesNotExist:
+        return Response({"error": "Admission record not found"}, status=404)
+
+    # Total Fee from YearLevelFee
+    year_level_fees = YearLevelFee.objects.filter(year_level=admission.year_level)
+    total_fee = year_level_fees.aggregate(total=Sum('amount'))['total'] or 0
+
+    # Paid Amount from FeeRecord
+    paid_amount = FeeRecord.objects.filter(student=student).aggregate(paid=Sum('paid_amount'))['paid'] or 0
+
+    due_amount = total_fee - paid_amount
+
+    return Response({
+        "student_name": student.user.get_full_name(),
+        "year_level": str(admission.year_level),
+        "total_fee": float(total_fee),
+        "paid_fee": float(paid_amount),
+        "due_fee": float(due_amount)
+    })
 
 
 

@@ -97,13 +97,22 @@ WSGI_APPLICATION = "core.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": BASE_DIR / "db.sqlite3",
+#     }
+# }
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "sms_project1",
+        "USER": "root",
+        "PASSWORD": "saqib123",
+        "HOST": "localhost",
+        "PORT": "3306",
     }
 }
-
 
 
 REST_FRAMEWORK = {
@@ -246,12 +255,12 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Razorpay credentials (get them from https://dashboard.razorpay.com/app/keys)
 
-# RAZORPAY_API_KEY = 'rzp_test_71sjXJLVYiRFI8'
-# RAZORPAY_API_KEY_SECRET = 'HTh4tMZNOWgoGAtYhP8yMVse'
-# RAZORPAY_WEBHOOK_SECRET = 'KLEcK25CqeD96@k'
-# RAZORPAY_KEY_ID = 'rzp_test_71sjXJLVYiRFI8'
-# RAZORPAY_KEY_SECRET = 'HTh4tMZNOWgoGAtYhP8yMVse'
-# RAZORPAY_WEBHOOK_SECRET = 'KLEcK25CqeD96@k'
+RAZORPAY_API_KEY = 'rzp_test_71sjXJLVYiRFI8'
+RAZORPAY_API_KEY_SECRET = 'HTh4tMZNOWgoGAtYhP8yMVse'
+RAZORPAY_WEBHOOK_SECRET = 'KLEcK25CqeD96@k'
+RAZORPAY_KEY_ID = 'rzp_test_71sjXJLVYiRFI8'
+RAZORPAY_KEY_SECRET = 'HTh4tMZNOWgoGAtYhP8yMVse'
+RAZORPAY_WEBHOOK_SECRET = 'KLEcK25CqeD96@k'
 
 # Added as of 10June25 at 12:02 PM
 RAZORPAY_KEY_ID = "rzp_test_4h2aRSAPbYw3f8"
