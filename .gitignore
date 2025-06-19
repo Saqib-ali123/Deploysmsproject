@@ -1,7 +1,7 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 __migrations__/
-env/
+__env__/
 *.py[cod]
 *$py.class
 
@@ -64,6 +64,7 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+db.mysql
 
 # Flask stuff:
 instance/

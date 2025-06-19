@@ -44,13 +44,7 @@ def generate_receipt_number():
 
 @api_view(["GET"])
 def Director_Dashboard_Summary(request):
-    #  Check if director with given id exists
-    # try:
-    #     # director = Director.objects.get(id=id)
-    # except Director.DoesNotExist:
-    #     return Response({"error": "Director not found"}, status=status.HTTP_404_NOT_FOUND)
-
-    # Continue if director exists
+  
     current_year = datetime.now().year
 
     summary = {
@@ -81,7 +75,7 @@ def Director_Dashboard_Summary(request):
                 "male": get_percentage(student_male, student_total),
                 "female": get_percentage(student_female, student_total)
             },
-            # "total": student_total
+          
         },
         "teachers": {
             "count": {
@@ -92,7 +86,7 @@ def Director_Dashboard_Summary(request):
                 "male": get_percentage(teacher_male, teacher_total),
                 "female": get_percentage(teacher_female, teacher_total)
             },
-            # "total": teacher_total
+            
         }
     }
 
@@ -109,7 +103,7 @@ def Director_Dashboard_Summary(request):
         students_per_year[year_range] = count
 
     return Response({
-        # "director_id": id,
+      
         "summary": summary,
         "gender_distribution": gender_distribution,
         "class_strength": class_strength,
@@ -160,8 +154,13 @@ def teacher_dashboard(request, id):
 
 @api_view(["GET"])
 def guardian_dashboard(request,id=None):
-    # Static Guardian (replace with auth user in production)
-    guardian = Guardian.objects.get(user_id=id)
+    if not id:
+        return Response({"error": "Guardian ID is required"}, status=400)
+
+    try:
+        guardian = Guardian.objects.get(id=id)
+    except Guardian.DoesNotExist:
+        return Response({"error": "Guardian not found"}, status=404)
 
     student_links = StudentGuardian.objects.filter(guardian=guardian)
     children_data = []
@@ -236,34 +235,34 @@ def office_staff_dashboard(request):
 
 
 
-@api_view(["GET"])
-def student_dashboard(request, id):
-    try:
-        student = Student.objects.get(id=id)
-    except Student.DoesNotExist:
-        return Response({"error": "Student not found"}, status=404)
+# @api_view(["GET"])
+# def student_dashboard(request, id):
+#     try:
+#         student = Student.objects.get(id=id)
+#     except Student.DoesNotExist:
+#         return Response({"error": "Student not found"}, status=404)
 
-    # Get the latest admission if multiple exist
-    admission = Admission.objects.filter(student=student).order_by('-admission_date').first()
-    if not admission:
-        return Response({"error": "Admission record not found"}, status=404)
+#     # Get the latest admission if multiple exist
+#     admission = Admission.objects.filter(student=student).order_by('-admission_date').first()
+#     if not admission:
+#         return Response({"error": "Admission record not found"}, status=404)
 
-    # Total Fee from YearLevelFee
-    year_level_fees = YearLevelFee.objects.filter(year_level=admission.year_level)
-    total_fee = year_level_fees.aggregate(total=Sum('amount'))['total'] or 0
+#     # Total Fee from YearLevelFee
+#     year_level_fees = YearLevelFee.objects.filter(year_level=admission.year_level)
+#     total_fee = year_level_fees.aggregate(total=Sum('amount'))['total'] or 0
 
-    # Paid Amount from FeeRecord
-    paid_amount = FeeRecord.objects.filter(student=student).aggregate(paid=Sum('paid_amount'))['paid'] or 0
+#     # Paid Amount from FeeRecord
+#     paid_amount = FeeRecord.objects.filter(student=student).aggregate(paid=Sum('paid_amount'))['paid'] or 0
 
-    due_amount = total_fee - paid_amount
+#     due_amount = total_fee - paid_amount
 
-    return Response({
-        "student_name": student.user.get_full_name(),
-        "year_level": str(admission.year_level),
-        "total_fee": float(total_fee),
-        "paid_fee": float(paid_amount),
-        "due_fee": float(due_amount)
-    })
+#     return Response({
+#         "student_name": student.user.get_full_name(),
+#         "year_level": str(admission.year_level),
+#         "total_fee": float(total_fee),
+#         "paid_fee": float(paid_amount),
+#         "due_fee": float(due_amount)
+#     })
 
 
 # -------------------------------------------------  Fees summary view  ----------------------------------------------------------
@@ -276,9 +275,8 @@ def student_dashboard(request, id):
 
 @api_view(["GET"])
 def director_fee_summary(request):
-    # Get optional filters from query params
-    month = request.GET.get("month")  # e.g., "June"
-    year = request.GET.get("year")    # e.g., "2025"
+    month = request.GET.get("month")  
+    year = request.GET.get("year")    
 
     # School-level summary
     total_students = Student.objects.count()
@@ -328,7 +326,6 @@ def director_fee_summary(request):
 
         class_data.append({
             "class_name": f"{period.classroom.room_type} - {period.classroom.room_name}",
-            # "section": getattr(period, 'section', None),
             "total_students": students_in_class.count(),
             "total_fee": class_total_fee,
             "paid_fee": class_total_paid,
@@ -356,10 +353,9 @@ def director_fee_summary(request):
 
 @api_view(["GET"])
 def guardian_income_distribution(request):
-    bucket_size = int(request.GET.get("bucket_size", 10000))  # Default ₹10,000
-    max_income = int(request.GET.get("max_income", 200000))   # Default ₹2,00,000
+    bucket_size = int(request.GET.get("bucket_size", 10000)) 
+    max_income = int(request.GET.get("max_income", 200000))   
 
-    # FLOOR(annual_income / bucket_size)
     income_bucket_expr = ExpressionWrapper(
         Func(
             F('annual_income') / Value(bucket_size),
