@@ -12,7 +12,13 @@ from rest_framework .views import APIView       # As of 07May25 at 12:30 PM
 from rest_framework.filters import SearchFilter
 from django.db.models import Sum
 from rest_framework.decorators import action
-# import razorpay
+from django.db.models.functions import Coalesce
+from django.db.models import Sum, DecimalField
+# views.py
+
+from django.db.models import Count, F, ExpressionWrapper, IntegerField ,Func , Value
+
+import razorpay
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from datetime import datetime
@@ -38,13 +44,7 @@ def generate_receipt_number():
 
 @api_view(["GET"])
 def Director_Dashboard_Summary(request):
-    #  Check if director with given id exists
-    # try:
-    #     # director = Director.objects.get(id=id)
-    # except Director.DoesNotExist:
-    #     return Response({"error": "Director not found"}, status=status.HTTP_404_NOT_FOUND)
-
-    # Continue if director exists
+  
     current_year = datetime.now().year
 
     summary = {
@@ -75,7 +75,7 @@ def Director_Dashboard_Summary(request):
                 "male": get_percentage(student_male, student_total),
                 "female": get_percentage(student_female, student_total)
             },
-            # "total": student_total
+          
         },
         "teachers": {
             "count": {
@@ -86,7 +86,7 @@ def Director_Dashboard_Summary(request):
                 "male": get_percentage(teacher_male, teacher_total),
                 "female": get_percentage(teacher_female, teacher_total)
             },
-            # "total": teacher_total
+            
         }
     }
 
@@ -103,7 +103,7 @@ def Director_Dashboard_Summary(request):
         students_per_year[year_range] = count
 
     return Response({
-        # "director_id": id,
+      
         "summary": summary,
         "gender_distribution": gender_distribution,
         "class_strength": class_strength,
@@ -153,9 +153,14 @@ def teacher_dashboard(request, id):
 
 
 @api_view(["GET"])
-def guardian_dashboard(request,id):
-    # Static Guardian (replace with auth user in production)
-    guardian = Guardian.objects.get(user_id=id)
+def guardian_dashboard(request,id=None):
+    if not id:
+        return Response({"error": "Guardian ID is required"}, status=400)
+
+    try:
+        guardian = Guardian.objects.get(id=id)
+    except Guardian.DoesNotExist:
+        return Response({"error": "Guardian not found"}, status=404)
 
     student_links = StudentGuardian.objects.filter(guardian=guardian)
     children_data = []
@@ -179,52 +184,88 @@ def guardian_dashboard(request,id):
 
 # --------------------------------------------------------- office Staff Dashboard View  ----------------------------------------------------------
 
-@api_view(["GET"])
-def office_staff_dashboard(request, id=None):
-  
-    try:
-        user = User.objects.get(id=id)
-    except User.DoesNotExist:
-        return Response({"error": "User not found"}, status=404)
 
-    #  Get current date and academic year
+@api_view(["GET"])
+def office_staff_dashboard(request):
+    
+    staff = OfficeStaff.objects.first()
+    if not staff or not staff.user:
+        return Response({"error": "No office staff found"}, status=404)
+
+    
     current_date = datetime.now().date()
-    try:
-        current_school_year = SchoolYear.objects.get(
-            start_date__lte=current_date,
-            end_date__gte=current_date
-        )
-    except SchoolYear.DoesNotExist:
+    current_year = (
+        SchoolYear.objects
+        .filter(start_date__lte=current_date, end_date__gte=current_date)
+        .order_by('-start_date')
+        .first()
+    )
+
+    if not current_year:
         return Response({"error": "Current academic year not found"}, status=404)
 
-    # Count new admissions in current academic year
-    new_admissions_count = Admission.objects.filter(
-        admission_date__gte=current_school_year.start_date,
-        admission_date__lte=current_school_year.end_date
-    ).count()
+    new_admissions = Admission.objects.filter(
+       admission_date__gte=current_year.start_date,
+       admission_date__lte=current_year.end_date
+   ).count()
 
-    # Admissions per year (trend)
-    admissions_by_year = Admission.objects.values("admission_date__year").annotate(
-        total=Count("id")
-    ).order_by("admission_date__year")
+    admission_stats = Admission.objects.values("admission_date__year").annotate(
+       total=Count("id")
+   ).order_by("admission_date__year")
 
-    admissions_trend = {
-        str(entry["admission_date__year"]): entry["total"]
-        for entry in admissions_by_year
-    }
-
+    trend = OrderedDict()
+    for stat in admission_stats:
+        year = stat["admission_date__year"]
+        trend[str(year)] = stat["total"]
 
     return Response({
-        "staff": f"{user.first_name} {user.last_name}",
-        "current_academic_year": f"{current_school_year.start_date.year}-{current_school_year.end_date.year}",
-        "new_admissions_this_year": new_admissions_count,
-        "admissions_per_year": admissions_trend
+        "staff_name": f"{staff.user.first_name} {staff.user.last_name}",
+        "current_academic_year": f"{current_year.start_date.year}-{current_year.end_date.year}",
+        "new_admissions_this_year": new_admissions,
+        "admissions_per_year": trend
     })
 
 
 
 
 
+# --------------------------------------------------------- student dashboard View  ----------------------------------------------------------
+
+
+
+
+
+# @api_view(["GET"])
+# def student_dashboard(request, id):
+#     try:
+#         student = Student.objects.get(id=id)
+#     except Student.DoesNotExist:
+#         return Response({"error": "Student not found"}, status=404)
+
+#     # Get the latest admission if multiple exist
+#     admission = Admission.objects.filter(student=student).order_by('-admission_date').first()
+#     if not admission:
+#         return Response({"error": "Admission record not found"}, status=404)
+
+#     # Total Fee from YearLevelFee
+#     year_level_fees = YearLevelFee.objects.filter(year_level=admission.year_level)
+#     total_fee = year_level_fees.aggregate(total=Sum('amount'))['total'] or 0
+
+#     # Paid Amount from FeeRecord
+#     paid_amount = FeeRecord.objects.filter(student=student).aggregate(paid=Sum('paid_amount'))['paid'] or 0
+
+#     due_amount = total_fee - paid_amount
+
+#     return Response({
+#         "student_name": student.user.get_full_name(),
+#         "year_level": str(admission.year_level),
+#         "total_fee": float(total_fee),
+#         "paid_fee": float(paid_amount),
+#         "due_fee": float(due_amount)
+#     })
+
+
+# -------------------------------------------------  Fees summary view  ----------------------------------------------------------
 
 
 
@@ -232,10 +273,134 @@ def office_staff_dashboard(request, id=None):
 
 
 
+@api_view(["GET"])
+def director_fee_summary(request):
+    month = request.GET.get("month")  
+    year = request.GET.get("year")    
+
+    # School-level summary
+    total_students = Student.objects.count()
+
+    fee_qs = FeeRecord.objects.all()
+
+    if month and year:
+        fee_qs = fee_qs.filter(month=month, payment_date__year=year)
+    elif year:
+        fee_qs = fee_qs.filter(payment_date__year=year)
+
+    total_fee = fee_qs.aggregate(
+        total=Coalesce(Sum('total_amount', output_field=DecimalField()), Decimal("0.00"))
+    )['total']
+
+    total_paid = fee_qs.aggregate(
+        paid=Coalesce(Sum('paid_amount', output_field=DecimalField()), Decimal("0.00"))
+    )['paid']
+
+    total_due = fee_qs.aggregate(
+        due=Coalesce(Sum('due_amount', output_field=DecimalField()), Decimal("0.00"))
+    )['due']
+
+    # Class-wise summary
+    class_data = []
+    all_class_periods = ClassPeriod.objects.select_related('classroom__room_type').all()
+
+    for period in all_class_periods:
+        students_in_class = Student.objects.filter(classes=period).distinct()
+        student_ids = students_in_class.values_list('id', flat=True)
+
+        class_fee_qs = FeeRecord.objects.filter(student_id__in=student_ids)
+        if month and year:
+            class_fee_qs = class_fee_qs.filter(month=month, payment_date__year=year)
+
+        class_total_fee = class_fee_qs.aggregate(
+            total=Coalesce(Sum('total_amount', output_field=DecimalField()), Decimal("0.00"))
+        )['total']
+
+        class_total_paid = class_fee_qs.aggregate(
+            paid=Coalesce(Sum('paid_amount', output_field=DecimalField()), Decimal("0.00"))
+        )['paid']
+
+        class_total_due = class_fee_qs.aggregate(
+            due=Coalesce(Sum('due_amount', output_field=DecimalField()), Decimal("0.00"))
+        )['due']
+
+        class_data.append({
+            "class_name": f"{period.classroom.room_type} - {period.classroom.room_name}",
+            "total_students": students_in_class.count(),
+            "total_fee": class_total_fee,
+            "paid_fee": class_total_paid,
+            "due_fee": class_total_due
+        })
+
+    data = {
+        "school_summary": {
+            "total_students": total_students,
+            "total_fee": total_fee,
+            "paid_fee": total_paid,
+            "due_fee": total_due,
+        },
+        "class_summary": class_data
+    }
+
+    return Response(data)
+
+
+# -------------------------------------------------  Guardian income distribution view  ----------------------------------------------------------
 
 
 
 
+
+@api_view(["GET"])
+def guardian_income_distribution(request):
+    bucket_size = int(request.GET.get("bucket_size", 10000)) 
+    max_income = int(request.GET.get("max_income", 200000))   
+
+    income_bucket_expr = ExpressionWrapper(
+        Func(
+            F('annual_income') / Value(bucket_size),
+            function='FLOOR'
+        ),
+        output_field=IntegerField()
+    )
+
+    data = (
+        Guardian.objects
+        .filter(annual_income__lt=max_income)
+        .annotate(income_bucket=income_bucket_expr)
+        .values('income_bucket')
+        .annotate(count=Count('id'))
+        .order_by('income_bucket')
+    )
+
+    result = []
+    for row in data:
+        start = row['income_bucket'] * bucket_size
+        end = start + bucket_size
+        result.append({
+            "range": f"₹{start} - ₹{end}",
+            "count": row["count"]
+        })
+
+    return Response(result)
+
+
+# ------------------------------------------------------------------------  livelihood  distribution view  ----------------------------------------------------------
+
+
+@api_view(["GET"])
+def livelihood_distribution(request):
+    govt_count = Guardian.objects.filter(means_of_livelihood='Govt').count()
+    non_govt_count = Guardian.objects.filter(means_of_livelihood='Non-Govt').count()
+
+    return Response([
+        {"category": "Government", "count": govt_count},
+        {"category": "Non-Government", "count": non_govt_count}
+    ])
+
+
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
