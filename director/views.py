@@ -14,6 +14,10 @@ from django.db.models import Sum
 from rest_framework.decorators import action
 from django.db.models.functions import Coalesce
 from django.db.models import Sum, DecimalField
+# views.py
+
+from django.db.models import Count, F, ExpressionWrapper, IntegerField ,Func , Value
+
 import razorpay
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -181,64 +185,67 @@ def guardian_dashboard(request,id=None):
 
 # --------------------------------------------------------- office Staff Dashboard View  ----------------------------------------------------------
 
-@api_view(["GET"])
-def office_staff_dashboard(request, id=None):
-  
-    try:
-        user = User.objects.get(id=id)
-    except User.DoesNotExist:
-        return Response({"error": "User not found"}, status=404)
 
-    #  Get current date and academic year
+@api_view(["GET"])
+def office_staff_dashboard(request):
+    
+    staff = OfficeStaff.objects.first()
+    if not staff or not staff.user:
+        return Response({"error": "No office staff found"}, status=404)
+
+    
     current_date = datetime.now().date()
-    try:
-        current_school_year = SchoolYear.objects.get(
-            start_date__lte=current_date,
-            end_date__gte=current_date
-        )
-    except SchoolYear.DoesNotExist:
+    current_year = (
+        SchoolYear.objects
+        .filter(start_date__lte=current_date, end_date__gte=current_date)
+        .order_by('-start_date')
+        .first()
+    )
+
+    if not current_year:
         return Response({"error": "Current academic year not found"}, status=404)
 
-    # Count new admissions in current academic year
-    new_admissions_count = Admission.objects.filter(
-        admission_date__gte=current_school_year.start_date,
-        admission_date__lte=current_school_year.end_date
-    ).count()
+    new_admissions = Admission.objects.filter(
+       admission_date__gte=current_year.start_date,
+       admission_date__lte=current_year.end_date
+   ).count()
 
-    # Admissions per year (trend)
-    admissions_by_year = Admission.objects.values("admission_date__year").annotate(
-        total=Count("id")
-    ).order_by("admission_date__year")
+    admission_stats = Admission.objects.values("admission_date__year").annotate(
+       total=Count("id")
+   ).order_by("admission_date__year")
 
-    admissions_trend = {
-        str(entry["admission_date__year"]): entry["total"]
-        for entry in admissions_by_year
-    }
-
+    trend = OrderedDict()
+    for stat in admission_stats:
+        year = stat["admission_date__year"]
+        trend[str(year)] = stat["total"]
 
     return Response({
-        "staff": f"{user.first_name} {user.last_name}",
-        "current_academic_year": f"{current_school_year.start_date.year}-{current_school_year.end_date.year}",
-        "new_admissions_this_year": new_admissions_count,
-        "admissions_per_year": admissions_trend
+        "staff_name": f"{staff.user.first_name} {staff.user.last_name}",
+        "current_academic_year": f"{current_year.start_date.year}-{current_year.end_date.year}",
+        "new_admissions_this_year": new_admissions,
+        "admissions_per_year": trend
     })
+
+
+
 
 
 # --------------------------------------------------------- student dashboard View  ----------------------------------------------------------
 
 
 
+
+
 @api_view(["GET"])
-def student_dashboard(request,id):
+def student_dashboard(request, id):
     try:
         student = Student.objects.get(id=id)
     except Student.DoesNotExist:
         return Response({"error": "Student not found"}, status=404)
 
-    # Get admission
-    try:
-        admission = Admission.objects.get(student=student)
-    except Admission.DoesNotExist:
+    # Get the latest admission if multiple exist
+    admission = Admission.objects.filter(student=student).order_by('-admission_date').first()
+    if not admission:
         return Response({"error": "Admission record not found"}, status=404)
 
     # Total Fee from YearLevelFee
@@ -257,6 +264,7 @@ def student_dashboard(request,id):
         "paid_fee": float(paid_amount),
         "due_fee": float(due_amount)
     })
+
 
 # -------------------------------------------------  Fees summary view  ----------------------------------------------------------
 
@@ -340,15 +348,63 @@ def director_fee_summary(request):
     return Response(data)
 
 
+# -------------------------------------------------  Guardian income distribution view  ----------------------------------------------------------
 
 
 
 
 
+@api_view(["GET"])
+def guardian_income_distribution(request):
+    bucket_size = int(request.GET.get("bucket_size", 10000))  # Default ₹10,000
+    max_income = int(request.GET.get("max_income", 200000))   # Default ₹2,00,000
+
+    # FLOOR(annual_income / bucket_size)
+    income_bucket_expr = ExpressionWrapper(
+        Func(
+            F('annual_income') / Value(bucket_size),
+            function='FLOOR'
+        ),
+        output_field=IntegerField()
+    )
+
+    data = (
+        Guardian.objects
+        .filter(annual_income__lt=max_income)
+        .annotate(income_bucket=income_bucket_expr)
+        .values('income_bucket')
+        .annotate(count=Count('id'))
+        .order_by('income_bucket')
+    )
+
+    result = []
+    for row in data:
+        start = row['income_bucket'] * bucket_size
+        end = start + bucket_size
+        result.append({
+            "range": f"₹{start} - ₹{end}",
+            "count": row["count"]
+        })
+
+    return Response(result)
+
+
+# ------------------------------------------------------------------------  livelihood  distribution view  ----------------------------------------------------------
+
+
+@api_view(["GET"])
+def livelihood_distribution(request):
+    govt_count = Guardian.objects.filter(means_of_livelihood='Govt').count()
+    non_govt_count = Guardian.objects.filter(means_of_livelihood='Non-Govt').count()
+
+    return Response([
+        {"category": "Government", "count": govt_count},
+        {"category": "Non-Government", "count": non_govt_count}
+    ])
 
 
 
-
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
