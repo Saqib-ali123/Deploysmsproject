@@ -224,8 +224,7 @@ class GuardianSerializer(serializers.ModelSerializer):
 
         return instance
 
-# ## As of 19June25 at 01:30 PM
-from .models import StudentYearLevel
+
 
 
     def to_representation(self, instance):

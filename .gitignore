@@ -4,7 +4,7 @@ __migrations__/
 __env__/
 *.py[cod]
 *$py.class
-
+smsenv/
 # C extensions
 *.so
 
@@ -32,7 +32,7 @@ share/python-wheels/
 migrations/
 
 MANIFEST
-
+.env
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
