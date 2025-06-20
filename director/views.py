@@ -3,8 +3,6 @@ from rest_framework.response import Response
 from django.db.models import Count
 from collections import OrderedDict
 from .serializers import *
-from rest_framework import status
-from rest_framework import viewsets
 from rest_framework import filters
 from .models import *
 from rest_framework .views import APIView       # As of 07May25 at 12:30 PM
@@ -18,6 +16,10 @@ from django.shortcuts import get_object_or_404
 from datetime import datetime
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework import viewsets, status
+import json  # 🔸 This goes at the top of the file
+from django.db.models import Q
+from collections import OrderedDict, defaultdict
 
 client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
 
@@ -913,38 +915,8 @@ class FileView(viewsets.ModelViewSet):
     serializer_class = FileSerializer 
 
 
-# from rest_framework.parsers import MultiPartParser, FormParser
 
-# class DocumentView(viewsets.ModelViewSet):
-#     queryset = Document.objects.all()
-#     serializer_class = DocumentSerializer
-#     parser_classes = (MultiPartParser, FormParser)
 
-#     def create(self, request, *args, **kwargs):
-#         print("Request FILES:", request.FILES)
-#         print("Request DATA:", request.data)
-
-#         files = request.FILES.getlist('uploaded_files')
-#         document_types = request.data.getlist('document_types')
-
-#         if not files:
-#             return Response({"error": "No files uploaded"}, status=status.HTTP_400_BAD_REQUEST)
-#         if not document_types:
-#             return Response({"error": "At least one document type must be selected."}, status=status.HTTP_400_BAD_REQUEST)
-
-#         data = request.data.copy()
-#         data.setlist('uploaded_files', files)
-#         data.setlist('document_types', document_types)
-
-#         serializer = self.get_serializer(data=data)
-#         serializer.is_valid(raise_exception=True)
-#         self.perform_create(serializer)
-#         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-from rest_framework import viewsets, status
-from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
-import json  # 🔸 This goes at the top of the file
 
 class DocumentView(viewsets.ModelViewSet):
     queryset = Document.objects.all()
@@ -981,35 +953,7 @@ class DocumentView(viewsets.ModelViewSet):
 
 
 
-    # parser_classes = [MultiPartParser, FormParser]  # Important for file uploads
-
-    # def create(self, request, *args, **kwargs):
-    #     document_types = request.data.getlist('document_types')
-    #     student = request.data.get('student')
-    #     teacher = request.data.get('teacher')
-    #     guardian = request.data.get('guardian')
-    #     office_staff = request.data.get('office_staff')
-    #     uploaded_files = request.FILES.getlist('files')
-
-    #     if not uploaded_files:
-    #         return Response({"error": "No files uploaded"}, status=status.HTTP_400_BAD_REQUEST)
-
-    #     file_objs = [File.objects.create(file=f) for f in uploaded_files]
-
-    #     document = Document.objects.create(
-    #         student_id=student,
-    #         teacher_id=teacher,
-    #         guardian_id=guardian,
-    #         office_staff_id=office_staff
-    #     )
-    #     document.files.set(file_objs)
-    #     document.document_types.set(document_types)
-    #     document.save()
-
-    #     serializer = self.get_serializer(document)
-    #     return Response(serializer.data, status=status.HTTP_201_CREATED)
     
-# **********************************    
 
     
     
@@ -1034,82 +978,7 @@ class ClassPeriodView(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
     
     
-# As of 07May25 at 12:30 PM
-#commented as of 04June25 at 12:00 AM
-# class FeeTypeView(viewsets.ModelViewSet):
-#     queryset = FeeType.objects.all()
-#     serializer_class = FeeTypeSerializer
-    
-    
-# class FeeStructureView(viewsets.ModelViewSet):
-#     queryset = FeeStructure.objects.all()
-#     serializer_class = FeeStructureSerializer
 
-
-# #     # added this code as of 13may25 at 03:45 PM
-# class FeeSubmitView(viewsets.ModelViewSet):
-#     queryset = Fee.objects.all()
-#     serializer_class = FeeSubmitSerializer
-
-#     @action(detail=True, methods=['get'], url_path='summary')
-#     def fee_summary(self, request, pk=None):  # `pk` is student_id
-#         try:
-#             student = Student.objects.get(id=pk)
-#         except Student.DoesNotExist:
-#             return Response({"error": "Student not found"}, status=404)
-
-#         student_data = {
-#             "student_id": student.id,
-#             "student_name": student.user.get_full_name(),
-#             "fee_details": []
-#         }
-
-#         for fee_structure in FeeStructure.objects.all():
-#             fee_type = fee_structure.fee_type
-#             amount_to_be_paid = float(fee_structure.total_fee)
-
-#             amount_paid = Fee.objects.filter(
-#                 student=student,
-#                 fee_structure=fee_structure,
-#                 fee_type=fee_type
-#             ).aggregate(total=Sum('amount_paid'))['total'] or 0.0
-
-#             amount_due = round(amount_to_be_paid - float(amount_paid), 2)
-
-#             latest_payment = Fee.objects.filter(
-#                 student=student,
-#                 fee_structure=fee_structure,
-#                 fee_type=fee_type
-#             ).order_by('-payment_date').first()
-
-#             if latest_payment:
-#                 payment_date = latest_payment.payment_date.strftime('%Y-%m-%d') 
-#                 payment_mode = latest_payment.payment_mode
-#                 receipt_number = str(latest_payment.receipt_number) 
-#             else:
-#                 payment_date = None
-#                 payment_mode = None
-#                 receipt_number = None
-
-#             student_data["fee_details"].append({
-#                 "fee_structure": f"{fee_structure.year_level} - {fee_structure.term}",
-#                 "total_fee": amount_to_be_paid,
-#                 "fee_type": fee_type.name,
-#                 "amount_to_be_paid": amount_to_be_paid,
-#                 "amount_paid": float(amount_paid),
-#                 "amount_due": amount_due,
-#                 "payment_date": payment_date,
-#                 "payment_mode": payment_mode,
-#                 "receipt_number": receipt_number
-#             })
-
-#         return Response(student_data)
-    #commented as of 04June25 at 12:00 AM   
-    
-# As of 04June2025 at 12:15 AM
-# Re-implementation of Fee module based on the provided fee card
-from django.db.models import Q
-from collections import OrderedDict, defaultdict
 
 
 class FeeTypeView(viewsets.ModelViewSet):
