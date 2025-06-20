@@ -149,6 +149,34 @@
 #     return os.path.join(base_path, folder_path, filename)
 
 
+#### commented as of 19 june25 at 11:11 PM from here
+# import os
+
+# def Document_folder(instance, filename):
+#     base_path = "Document_folder"
+
+#     if instance.student:
+#         user = instance.student.user
+#         # Get the year level (for example: "class1", "class2")
+#         year_level = (
+#             instance.student.studentyearlevel_set.first().level.level_name
+#             if instance.student.studentyearlevel_set.exists()
+#             else "unknown_level"
+#         )
+#         # Folder path with student's year level and name (first_name_last_name)
+#         folder_path = f"student/{year_level}/{user.first_name}_{user.last_name}"
+
+#     elif instance.teacher:
+#         user = instance.teacher.user
+#         folder_path = f"teacher/{user.first_name}_{user.last_name}"
+
+#     elif instance.guardian:
+#         user = instance.guardian.user
+#         folder_path = f"guardian/{user.first_name}_{user.last_name}"
+
+#     elif instance.office_staff:
+#         user = instance.office_staff.user
+
 # ***********************************2222**************************
 
 
@@ -181,7 +209,26 @@
 #     else:
 #         folder_path = "unknown"
 
+#     # Debugging print statements
+#     print(f"DEBUG: ROLE DETECTED: {folder_path.split('/')[0]}")
+#     print(f"DEBUG: FULL FOLDER PATH: {os.path.join(base_path, folder_path)}")
+#     print(f"DEBUG: FILE PATH: {os.path.join(base_path, folder_path, filename)}")
+
 #     return os.path.join(base_path, folder_path, filename)
+
+#### commented as of 19 june25 at 11:11 PM till here
+
+
+
+
+
+
+
+
+
+
+#### added as of 19 june25 at 11:11 PM from here
+
 import os
 
 def Document_folder(instance, filename):
@@ -192,6 +239,7 @@ def Document_folder(instance, filename):
         return f"Document_folder/unknown/{filename}"
 
     base_path = "Document_folder"
+
 
     if document.student:
         user = document.student.user

@@ -320,6 +320,10 @@ class GuardianSerializer(serializers.ModelSerializer):
 
         return instance
 
+# ## As of 19June25 at 01:30 PM
+from .models import StudentYearLevel
+
+
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         user = instance.user
@@ -354,16 +358,22 @@ class GuardianSerializer(serializers.ModelSerializer):
 
 ## As of 29May25 at 02:30 PM
 class StudentYearLevelSerializer(serializers.ModelSerializer):
-    student_name = serializers.SerializerMethodField()
+    student_name = serializers.SerializerMethodField(read_only=True)
     level_name = serializers.CharField(source='level.level_name', read_only=True)
     year_name = serializers.CharField(source='year.year_name', read_only=True)
+
+    class Meta:
+        model = StudentYearLevel
+        fields = ['id', 'student', 'level', 'year', 'student_name', 'level_name', 'year_name']
+        extra_kwargs = {
+            'student': {'write_only': True},
+            'level': {'write_only': True},
+            'year': {'write_only': True},
+        }
 
     def get_student_name(self, obj):
         first_name = obj.student.user.first_name or ''
         last_name = obj.student.user.last_name or ''
         return f"{first_name} {last_name}".strip()
 
-    class Meta:
-        model = StudentYearLevel
-        fields = ['id', 'student_name', 'level_name', 'year_name']
 

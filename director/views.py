@@ -26,6 +26,11 @@ client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_
 
 import random
 import string
+from django.db.models import Sum, F, Value, DecimalField
+from django.db.models.functions import Coalesce
+from django.db.models import Q
+from django.db.models import Q, Sum, Value, FloatField
+
 
 # client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
 
@@ -1234,79 +1239,7 @@ class ClassPeriodView(viewsets.ModelViewSet):
                 "details": result
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
-    
-    
-# As of 07May25 at 12:30 PM
-#commented as of 04June25 at 12:00 AM
-# class FeeTypeView(viewsets.ModelViewSet):
-#     queryset = FeeType.objects.all()
-#     serializer_class = FeeTypeSerializer
-    
-    
-# class FeeStructureView(viewsets.ModelViewSet):
-#     queryset = FeeStructure.objects.all()
-#     serializer_class = FeeStructureSerializer
-
-
-# #     # added this code as of 13may25 at 03:45 PM
-# class FeeSubmitView(viewsets.ModelViewSet):
-#     queryset = Fee.objects.all()
-#     serializer_class = FeeSubmitSerializer
-
-#     @action(detail=True, methods=['get'], url_path='summary')
-#     def fee_summary(self, request, pk=None):  # `pk` is student_id
-#         try:
-#             student = Student.objects.get(id=pk)
-#         except Student.DoesNotExist:
-#             return Response({"error": "Student not found"}, status=404)
-
-#         student_data = {
-#             "student_id": student.id,
-#             "student_name": student.user.get_full_name(),
-#             "fee_details": []
-#         }
-
-#         for fee_structure in FeeStructure.objects.all():
-#             fee_type = fee_structure.fee_type
-#             amount_to_be_paid = float(fee_structure.total_fee)
-
-#             amount_paid = Fee.objects.filter(
-#                 student=student,
-#                 fee_structure=fee_structure,
-#                 fee_type=fee_type
-#             ).aggregate(total=Sum('amount_paid'))['total'] or 0.0
-
-#             amount_due = round(amount_to_be_paid - float(amount_paid), 2)
-
-#             latest_payment = Fee.objects.filter(
-#                 student=student,
-#                 fee_structure=fee_structure,
-#                 fee_type=fee_type
-#             ).order_by('-payment_date').first()
-
-#             if latest_payment:
-#                 payment_date = latest_payment.payment_date.strftime('%Y-%m-%d') 
-#                 payment_mode = latest_payment.payment_mode
-#                 receipt_number = str(latest_payment.receipt_number) 
-#             else:
-#                 payment_date = None
-#                 payment_mode = None
-#                 receipt_number = None
-
-#             student_data["fee_details"].append({
-#                 "fee_structure": f"{fee_structure.year_level} - {fee_structure.term}",
-#                 "total_fee": amount_to_be_paid,
-#                 "fee_type": fee_type.name,
-#                 "amount_to_be_paid": amount_to_be_paid,
-#                 "amount_paid": float(amount_paid),
-#                 "amount_due": amount_due,
-#                 "payment_date": payment_date,
-#                 "payment_mode": payment_mode,
-#                 "receipt_number": receipt_number
-#             })
-
-#         return Response(student_data)
-    #commented as of 04June25 at 12:00 AM   
+     
     
 # As of 04June2025 at 12:15 AM
 # Re-implementation of Fee module based on the provided fee card
@@ -1341,7 +1274,8 @@ class YearLevelFeeView(viewsets.ModelViewSet):
         return Response(grouped_fees[0] if grouped_fees else {})
     
     
-
+# Fee Record View
+# https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/
 class FeeRecordView(viewsets.ModelViewSet):
     serializer_class = FeeRecordSerializer
     queryset = FeeRecord.objects.all()
@@ -1355,30 +1289,34 @@ class FeeRecordView(viewsets.ModelViewSet):
         'student__user__last_name',
         'year_level_fees__year_level__level_name',
     ]
-
-    # Optional filtering by year_level using ?year_level=ID
+    
+    # https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/?year_level=6
     def get_queryset(self):
         queryset = super().get_queryset()
         request = self.request
 
-        # Filter by year level (optional)
         year_level_id = request.query_params.get('year_level')
         if year_level_id:
             queryset = queryset.filter(year_level_fees__year_level__id=year_level_id)
 
-        # Full name search
         search = request.query_params.get('search')
         if search:
             search = search.strip()
-            # Handle "first last" or "just first"
-            queryset = queryset.filter(
-                Q(student__user__first_name__icontains=search) |
-                Q(student__user__last_name__icontains=search) |
-                Q(student__user__first_name__icontains=search.split(' ')[0]) &
-                Q(student__user__last_name__icontains=' '.join(search.split(' ')[1:]))
-            )
+            search_parts = search.split(" ")
+
+            if len(search_parts) > 1:
+                queryset = queryset.filter(
+                    Q(student__user__first_name__icontains=search_parts[0]) &
+                    Q(student__user__last_name__icontains=' '.join(search_parts[1:]))
+                )
+            else:
+                queryset = queryset.filter(
+                    Q(student__user__first_name__icontains=search) |
+                    Q(student__user__last_name__icontains=search)
+                )
 
         return queryset.distinct()
+
     
     @action(detail=False, methods=['post'], url_path='submit_single_multi_month_fees')
     def submit_single_multi_month_fees(self, request):
@@ -1412,9 +1350,10 @@ class FeeRecordView(viewsets.ModelViewSet):
 
         return Response(responses, status=status.HTTP_200_OK)
 
-### Razorpay custom views
-
-    ### using custom view
+    ### Razorpay custom views
+    # https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/initiate-payment/
+    ### using custom view 
+    ### Added as of 12june25 at 02:20 PM
     @action(detail=False, methods=["post"], url_path="initiate-payment")
     def initiate_payment(self, request):
         serializer = FeeRecordRazorpaySerializer(data=request.data)
@@ -1424,14 +1363,14 @@ class FeeRecordView(viewsets.ModelViewSet):
         validated_data = serializer.validated_data
         total = validated_data['total_amount']
         late_fee = validated_data['late_fee']
-        amount = total + late_fee
-        
-        # Generate unique receipt number
+        paid_amount = validated_data['paid_amount']
+        amount_to_collect = total + late_fee  # This is the full due amount, not necessarily what's paid
+
         receipt_number = generate_receipt_number()
 
         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
         razorpay_order = client.order.create({
-            'amount': int(amount * 100),  # in paise
+            'amount': int(paid_amount * 100),  # Razorpay expects amount in paise
             'currency': 'INR',
             'payment_capture': '1',
             'receipt': receipt_number
@@ -1439,137 +1378,169 @@ class FeeRecordView(viewsets.ModelViewSet):
 
         return Response({
             'razorpay_order_id': razorpay_order['id'],
-            # 'razorpay_key': settings.RAZORPAY_KEY_ID,
-            'amount': float(amount),
+            'total_amount': float(total),
+            'late_fee': float(late_fee),
+            'paid_amount': float(paid_amount),
             'currency': 'INR',
             'receipt_number': receipt_number
         }, status=status.HTTP_200_OK)
 
+    
+    ### just added as of 13june25 at 11:21 AM
+    # https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/confirm-payment/
+    ### ------------------------------------- ###
+    # working completely fine just need to add complete fee record adding updated code here
     @action(detail=False, methods=["post"], url_path="confirm-payment")
     def confirm_payment(self, request):
         data = request.data
-        try:
-            razorpay_payment_id = data["razorpay_payment_id"]
-            razorpay_order_id = data["razorpay_order_id"]
-            razorpay_signature_id = data["razorpay_signature_id"]
-            student_id = data["student_id"]
-            month = data["month"]
-            fee_ids = data["year_level_fees"]
-        except KeyError:
-            return Response({"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST)
+        required_fields = [
+            "razorpay_payment_id",
+            "razorpay_order_id",
+            "razorpay_signature_id",
+            "student_id",
+            "month",
+            "year_level_fees",
+            "paid_amount",
+            "payment_mode",
+            "signature"
+        ]
+        missing = [field for field in required_fields if field not in data]
 
-        # Verify signature
+        if missing:
+            return Response({"error": f"Missing required fields: {', '.join(missing)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Verify Razorpay Signature
         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
         try:
             client.utility.verify_payment_signature({
-                "razorpay_order_id": razorpay_order_id,
-                "razorpay_payment_id": razorpay_payment_id,
-                "razorpay_signature_id": razorpay_signature_id
+                "razorpay_order_id": data["razorpay_order_id"],
+                "razorpay_payment_id": data["razorpay_payment_id"],
+                "razorpay_signature": data["razorpay_signature_id"]
             })
         except razorpay.errors.SignatureVerificationError:
             return Response({"error": "Payment verification failed"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create FeeRecord
-        student = Student.objects.get(id=student_id)
-        year_level_fees = YearLevelFee.objects.filter(id__in=fee_ids)
-        total = sum(fee.amount for fee in year_level_fees)
-        late_fee = Decimal("25.00") if date.today().day > 15 else Decimal("0.00")
-        total_paid = total + late_fee
+        # 2. Save FeeRecord
+        serializer = FeeRecordRazorpaySerializer(data=data)
+        if serializer.is_valid():
+            instance = serializer.save()
 
-        fee_record = FeeRecord.objects.create(
-            student=student,
-            month=month,
-            total_amount=total,
-            paid_amount=total_paid,
-            due_amount=0,
-            payment_date=date.today(),
-            payment_mode='Online',
-            late_fee=late_fee,
-            payment_status='Paid',
-            remarks='Paid via Razorpay',
-            signature='Verified Online',
-            razorpay_order_id=razorpay_order_id,
-            razorpay_payment_id=razorpay_payment_id,
-            razorpay_signature_id=razorpay_signature_id
-        )
-        fee_record.year_level_fees.set(year_level_fees)
+            # Serialize with full FeeRecordSerializer to return complete info
+            full_data = FeeRecordSerializer(instance).data
 
-        return Response({
-            "message": "Payment successful and FeeRecord saved.",
-            "receipt_number": fee_record.receipt_number
-        }, status=status.HTTP_201_CREATED)
+            return Response({
+                "message": "Payment successful and FeeRecord saved.",
+                "fee_record": full_data
+            }, status=status.HTTP_201_CREATED)
 
-
-
-
-
-     
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    # 🔹 Razorpay Initiate Payment      #commented as of 04June25 at 12:00 AM
-    # @action(detail=False, methods=['post'], url_path='initiate-payment')
-    # def initiate_payment(self, request):
-    #     serializer = RazorpayPaymentInitiateSerializer(data=request.data)
-    #     if serializer.is_valid():
-    #         data = serializer.validated_data
+    
+    
+    
+    # corrected amount issue as of 19June25 at 02:50 PM
+    # https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/student-fee-summary/?year_level=5
+    @action(detail=False, methods=["get"], url_path="student-fee-summary")
+    def student_fee_summary(self, request):
+        year_level = request.query_params.get("year_level")
+        search = request.query_params.get("search", "").strip()
 
-    #         # Safely fetch the objects, return 404 if not found
-    #         student = get_object_or_404(Student, id=data['student_id'])
-    #         fee_structure = get_object_or_404(FeeStructure, id=data['fee_structure_id'])
-    #         fee_type = get_object_or_404(FeeType, id=data['fee_type_id'])
+        qs = self.get_queryset()
+        filters = Q()
 
-    #         try:
-    #             # Convert amount to paise (minor currency unit)
-    #             amount_paise = int(data['amount'] * 100)
-    #             receipt_id = f"receipt_{student.id}_{fee_type.id}"
+        if year_level:
+            filters &= Q(student__student_year_levels__level__id=year_level)
 
-    #             # Create Razorpay order
-    #             order = client.order.create({
-    #                 "amount": amount_paise,
-    #                 "currency": "INR",
-    #                 "receipt": receipt_id,
-    #                 "payment_capture": 1
-    #             })
+        if search:
+            filters &= (
+                Q(student__user__first_name__icontains=search) |
+                Q(student__user__last_name__icontains=search)
+            )
 
-    #             # Save the fee record
-    #             Fee.objects.create(
-    #                 student=student,
-    #                 fee_structure=fee_structure,
-    #                 fee_type=fee_type,
-    #                 amount_paid=data['amount'],
-    #                 payment_mode='Online',
-    #                 razorpay_order_id=order['id']
-    #             )
+        qs = qs.filter(filters).distinct()
 
-    #             return Response({
-    #                 "order_id": order['id'],
-    #                 "amount": data['amount'],
-    #                 "currency": "INR",
-    #                 "student_id": student.id,
-    #                 "razorpay_key": settings.RAZORPAY_API_KEY,
-    #                 "receipt": receipt_id
-    #             })
+        summary = (
+            qs.values(
+                "student_id",
+                "student__user__first_name",
+                "student__user__last_name",
+                "student__student_year_levels__level__level_name"
+            )
+            .annotate(
+                total_amount=Coalesce(Sum("total_amount", output_field=FloatField()), Value(0.0)),
+                paid_amount=Coalesce(Sum("paid_amount", output_field=FloatField()), Value(0.0)),
+                late_fee=Coalesce(Sum("late_fee", output_field=FloatField()), Value(0.0))
+            )
+        )
 
-    #         except Exception as e:
-    #             return Response({"error": f"Payment initiation failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        result = []
+        for item in summary:
+            total = item["total_amount"] + item["late_fee"]
+            due = max(0, total - item["paid_amount"])
 
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            result.append({
+                "student_id": item["student_id"],
+                "student_name": f"{item['student__user__first_name']} {item['student__user__last_name']}",
+                "year_level": item["student__student_year_levels__level__level_name"],
+                "total_amount": float(total),
+                "paid_amount": float(item["paid_amount"]),
+                "due_amount": float(due),
+                "late_fee": float(item["late_fee"])  #  now included
+            })
 
-    # # 🔹 Razorpay Verify Payment
-    # @action(detail=False, methods=['post'], url_path='verify-payment')
-    # def verify_payment(self, request):
-    #     data = request.data
-    #     try:
-    #         client.utility.verify_payment_signature({
-    #             'razorpay_order_id': data['razorpay_order_id'],
-    #             'razorpay_payment_id': data['razorpay_payment_id'],
-    #             'razorpay_signature': data['razorpay_signature']
-    #         })
+        return Response(result, status=status.HTTP_200_OK)
 
-    #         fee = Fee.objects.get(razorpay_order_id=data['razorpay_order_id'])
-    #         fee.razorpay_payment_id = data['razorpay_payment_id']
-    #         fee.razorpay_signature = data['razorpay_signature']
-    #         fee.save()
+    # corrected amount issue as of 19June25 at 02:50 PM
+    # https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/monthly-summary/?year_level=2&month=June
+    @action(detail=False, methods=["get"], url_path="monthly-summary")
+    def monthly_summary(self, request):
+        month = request.query_params.get("month", "").strip()
+        year_level = request.query_params.get("year_level", "").strip()
+        search = request.query_params.get("search", "").strip()
 
-    #         return Response({"message": "Payment verified successfully."})
-    #     except razorpay.errors.SignatureVerificationError:
-    #         return Response({"message": "Payment verification failed."}, status=400)
+        qs = self.get_queryset()
+        filters = Q()
+
+        if month:
+            filters &= Q(month__iexact=month)
+
+        if year_level.isdigit():
+            filters &= Q(student__student_year_levels__level__id=year_level)
+        elif search:
+            filters &= Q(student__student_year_levels__level__level_name__icontains=search)
+
+        qs = qs.filter(filters).distinct()
+
+        if not qs.exists():
+            return Response({"detail": "No records found."}, status=status.HTTP_404_NOT_FOUND)
+
+        summary = (
+            qs.values(
+                "month",
+                "student__user__first_name",
+                "student__user__last_name",
+                "student__student_year_levels__level__level_name"
+            )
+            .annotate(
+                total_amount=Coalesce(Sum("total_amount", output_field=FloatField()), Value(0.0)),
+                paid_amount=Coalesce(Sum("paid_amount", output_field=FloatField()), Value(0.0)),
+                late_fee=Coalesce(Sum("late_fee", output_field=FloatField()), Value(0.0))
+            )
+        )
+
+        formatted_summary = []
+        for item in summary:
+            total = item["total_amount"] + item["late_fee"]
+            due = max(0, total - item["paid_amount"])
+
+            formatted_summary.append({
+                "month": item["month"],
+                "student_name": f"{item['student__user__first_name']} {item['student__user__last_name']}",
+                "year_level": item["student__student_year_levels__level__level_name"],
+                "total_amount": float(total),
+                "paid_amount": float(item["paid_amount"]),
+                "due_amount": float(due),
+                "late_fee": float(item["late_fee"])  #  now included
+            })
+
+        return Response(formatted_summary, status=status.HTTP_200_OK)
