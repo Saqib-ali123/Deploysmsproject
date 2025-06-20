@@ -103,16 +103,22 @@ WSGI_APPLICATION = "core.wsgi.application"
 #         "NAME": BASE_DIR / "db.sqlite3",
 #     }
 # }
+from decouple import config
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": "sms_project1",
-        "USER": "root",
-        "PASSWORD": "saqib123",
-        "HOST": "localhost",
-        "PORT": "3306",
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST'),
+        'PORT': config('DB_PORT'),
     }
 }
+
+
+
+
 
 
 REST_FRAMEWORK = {
@@ -264,8 +270,8 @@ RAZORPAY_KEY_SECRET = 'HTh4tMZNOWgoGAtYhP8yMVse'
 RAZORPAY_WEBHOOK_SECRET = 'KLEcK25CqeD96@k'
 
 # Added as of 10June25 at 12:02 PM
-RAZORPAY_KEY_ID = "rzp_test_4h2aRSAPbYw3f8"
-RAZORPAY_KEY_SECRET = "zuSKjh7zPlms6hBUefybslov"
+RAZORPAY_API_KEY = "rzp_test_4h2aRSAPbYw3f8"
+RAZORPAY_API_KEY_SECRET = "zuSKjh7zPlms6hBUefybslov"
 
 # RAZORPAY_API_KEY = "rzp_test_4h2aRSAPbYw3f8"
 # RAZORPAY_API_KEY_SECRET = "zuSKjh7zPlms6hBUefybslov"

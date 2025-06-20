@@ -20,6 +20,7 @@ from rest_framework import viewsets
 from .pagination import CreatePagination
 from datetime import date  
 from rest_framework.decorators import action 
+from rest_framework.permissions import IsAuthenticated,AllowAny
 
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -129,10 +130,7 @@ def GuardianTypeView(request, pk=None):
             )
 
 
-class StudentYearLevelView(ModelViewSet):
-    queryset = StudentYearLevel.objects.all()
-    serializer_class = StudentYearLevelSerializer
-    
+# 
     
     
 class StudentView(ModelViewSet):
@@ -140,6 +138,12 @@ class StudentView(ModelViewSet):
     serializer_class = StudentSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ['user__email', 'user__first_name', 'enrolment_date']
+    
+    def get_permissions(self):
+        """Public access for list/retrieve; JWT required for others."""
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -195,6 +199,27 @@ class StudentView(ModelViewSet):
             })
 
         return Response(students_data, status=status.HTTP_200_OK)
+    
+    # *************************JWTlogin student**************************
+    
+    @action(detail=False, methods=['get', 'put', 'patch'], url_path='student_my_profile', permission_classes=[IsAuthenticated])
+    def student_my_profile(self, request):
+        user = request.user
+
+        try:
+            student = Student.objects.get(user=user)
+        except Student.DoesNotExist:
+            return Response({"error": "No student profile found for this user."}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.method in ['PUT', 'PATCH']:
+            partial = request.method == 'PATCH'
+            serializer = self.get_serializer(student, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response({"success": "Student profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(student)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
@@ -211,6 +236,11 @@ class GuardianProfileView(viewsets.ModelViewSet):
     filter_backends = [SearchFilter]
     search_fields = ['user__email','user__first_name','user__guardian_relation__phone_no']
     pagination_class = CreatePagination
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]  # Public access
+        return [IsAuthenticated()]  # JWT required for update, my-profile, delete
 
   
     def destroy(self, request, *args, **kwargs):
@@ -236,6 +266,27 @@ class GuardianProfileView(viewsets.ModelViewSet):
                 return Response ({"error": "Deletion unsuccessful: Error deleting user"})
             
             
+    # **********************Jwt***************    
+    @action(detail=False, methods=['get', 'put', 'patch'], url_path='gardian_my_profile', permission_classes=[IsAuthenticated])
+    def gardian_my_profile(self, request):
+        user = request.user
+
+        try:
+            guardian = Guardian.objects.get(user=user)
+        except Guardian.DoesNotExist:
+            return Response({"error": "Guardian profile not found for this user."}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.method in ['PUT', 'PATCH']:
+            partial = request.method == 'PATCH'
+            serializer = self.get_serializer(guardian, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response({"success": "Guardian profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(guardian)
+        return Response(serializer.data, status=status.HTTP_200_OK)    
+            
+            
 
 
 # As of 19June25 at 12:46 PM
@@ -244,6 +295,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 class StudentYearLevelView(viewsets.ModelViewSet):
     queryset = StudentYearLevel.objects.all()
     serializer_class = StudentYearLevelSerializer
+
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['level__id']  #  GET /student-year-levels/?level__id=2
     search_fields = ['level__level_name']  #  GET /student-year-levels/?search=Nursery

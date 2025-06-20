@@ -17,3 +17,8 @@ urlpatterns = [
     path("reset_password/", views.ForgotPasswordView),
 
 ]
+
+
+
+
+

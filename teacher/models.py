@@ -6,11 +6,11 @@ from authentication.models import User
 # Create your models here.
 class Teacher(models.Model):
     user = models.OneToOneField(User, on_delete=models.DO_NOTHING)
-    phone_no = models.CharField(max_length=100)
-    gender = models.CharField(max_length=50)
+    phone_no = models.CharField(max_length=100,null=True,blank=True)
+    gender = models.CharField(max_length=50,null=True,blank=True)
     adhaar_no = models.BigIntegerField(null=True,blank=True)
     pan_no = models.BigIntegerField(null=True,blank=True)
-    qualification = models.CharField(max_length=250)
+    qualification = models.CharField(max_length=250,null=True,blank=True)
 
     year_levels = models.ManyToManyField('director.YearLevel', through='TeacherYearLevel')
     

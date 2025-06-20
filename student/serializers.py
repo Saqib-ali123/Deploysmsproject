@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from authentication.models import User
 from director.models import Address, City, Country, Role, ClassPeriod, State
+# from director.serializers import BankingDetailsSerializer
 from .models import GuardianType, Student, StudentGuardian,StudentYearLevel
 from director.models import ClassPeriod, YearLevel
 
@@ -19,49 +20,14 @@ class GuardianTypeSerializer(serializers.ModelSerializer):
         model = GuardianType
         fields = "__all__"
         
-# class StudentYearLevelSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = StudentYearLevel
-#         fields = "__all__"
 
 
 
-class StudentYearLevelSerializer(serializers.ModelSerializer):
-   
-    student = serializers.SerializerMethodField(read_only=True)
-    level = serializers.SerializerMethodField(read_only=True)
 
-    
-    level_id = serializers.PrimaryKeyRelatedField(
-        queryset=YearLevel.objects.all(),
-        write_only=True,
-        source='level'
-    )
-
-    class Meta:
-        model = StudentYearLevel
-        fields = ['id', 'student',  'level', 'level_id', 'year']
-
-    def get_student(self, obj):
-        user = obj.student.user
-        return {
-            "id": obj.student.id,
-            "first_name": user.first_name if user else "",
-            "last_name": user.last_name if user else "",
-            # "email": user.email if user else ""
-        }
-
-
-    def get_level(self, obj):
-        return {
-            "id": obj.level.id,
-            "name": obj.level.level_name
-        }
-
-
+# ***********************new*********************
 
 class StudentSerializer(serializers.ModelSerializer):
-    # User Info (write-only)
+    # User fields (write-only)
     first_name = serializers.CharField(max_length=100, write_only=True)
     middle_name = serializers.CharField(max_length=100, write_only=True, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=100, write_only=True)
@@ -69,160 +35,98 @@ class StudentSerializer(serializers.ModelSerializer):
     password = serializers.CharField(max_length=100, write_only=True, required=False)
     user_profile = serializers.ImageField(required=False, allow_null=True, write_only=True)
 
-    # Student Fields
-    father_name = serializers.CharField(required=False, allow_blank=True)
-    mother_name = serializers.CharField(required=False, allow_blank=True)
-    religion = serializers.CharField(required=False, allow_blank=True)
+    # Student model fields
+    father_name = serializers.CharField(required=False, allow_null=True)
+    mother_name = serializers.CharField(required=False, allow_null=True)
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    gender = serializers.CharField(required=False, allow_null=True)
+    religion = serializers.CharField(required=False, allow_null=True)
     category = serializers.ChoiceField(
         choices=[('SC', 'Scheduled Caste'), ('ST', 'Scheduled Tribe'), ('OBC', 'Other Backward Class'), ('GEN', 'General')],
-        required=False
+        default='GEN'
     )
-    height = serializers.FloatField(required=False)
-    weight = serializers.FloatField(required=False)
-    blood_group = serializers.CharField(required=False, allow_blank=True)
-    number_of_siblings = serializers.IntegerField(required=False)
-    date_of_birth = serializers.DateField(required=False, allow_null=True)
-    gender = serializers.CharField(required=False, allow_blank=True)
-    # enrolment_date = serializers.DateField(required=False, allow_null=True)
+    height = serializers.FloatField(required=False, allow_null=True)
+    weight = serializers.FloatField(required=False, allow_null=True)
+    blood_group = serializers.CharField(required=False, allow_null=True)
+    number_of_siblings = serializers.IntegerField(required=False, allow_null=True)
 
-    classes = serializers.PrimaryKeyRelatedField(queryset=ClassPeriod.objects.all(), many=True, required=False)
-
-    # Address fields for input (write_only)
-    house_no = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    habitation = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    word_no = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    zone_no = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    block = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    district = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    division = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    area_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    address_line = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    country = serializers.PrimaryKeyRelatedField(queryset=Country.objects.all(), required=False, write_only=True)
-    state = serializers.PrimaryKeyRelatedField(queryset=State.objects.all(), required=False, write_only=True)
-    city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all(), required=False, write_only=True)
-
-    # Banking fields for input (write_only)
-    account_no = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    ifsc_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    holder_name = serializers.CharField(required=False, allow_blank=True, write_only=True)
-
-    # For output: Address and Banking details shown as nested objects
-    address = serializers.SerializerMethodField()
-    banking_detail = serializers.SerializerMethodField()
+    # Classes many-to-many
+    classes = serializers.PrimaryKeyRelatedField(queryset=ClassPeriod.objects.all(), many=True,required=False, allow_null=True)
 
     class Meta:
         model = Student
-        exclude = ['user']  # user handled separately
-
-    def get_address(self, obj):
-        address = Address.objects.filter(user=obj.user).first()
-        if address:
-            return {
-                "house_no": address.house_no,
-                "habitation": address.habitation,
-                "word_no": address.word_no,
-                "zone_no": address.zone_no,
-                "block": address.block,
-                "district": address.district,
-                "division": address.division,
-                "area_code": address.area_code,
-                "address_line": address.address_line,
-                "country": address.country.id if address.country else None,
-                "state": address.state.id if address.state else None,
-                "city": address.city.id if address.city else None,
-            }
-        return None
-
-    def get_banking_detail(self, obj):
-        banking = getattr(obj.user, 'bankingdetail', None)
-        if banking:
-            return {
-                "account_no": banking.account_no,
-                "ifsc_code": banking.ifsc_code,
-                "holder_name": banking.holder_name,
-            }
-        return None
+        fields = ['id',
+            'first_name', 'middle_name', 'last_name', 'email', 'password', 'user_profile',
+            'father_name', 'mother_name', 'date_of_birth', 'gender', 'religion', 'category',
+            'height', 'weight', 'blood_group', 'number_of_siblings', 'classes'
+        ]
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         user = instance.user
-        rep['first_name'] = user.first_name
-        rep['middle_name'] = user.middle_name
-        rep['last_name'] = user.last_name
-        rep['email'] = user.email
-        rep['user_profile'] = user.user_profile.url if user.user_profile else None
-
-        # Add nested address and banking data
-        rep['address'] = self.get_address(instance)
-        rep['banking_detail'] = self.get_banking_detail(instance)
-
+        rep.update({
+            'first_name': user.first_name,
+            'middle_name': user.middle_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'user_profile': user.user_profile.url if user.user_profile else None,
+        })
         return rep
 
     def create(self, validated_data):
-        from director.serializers import BankingDetailsSerializer
-        # Extract user data
         user_data = {
-            'first_name': validated_data.pop('first_name', ''),
+            'first_name': validated_data.pop('first_name'),
             'middle_name': validated_data.pop('middle_name', ''),
-            'last_name': validated_data.pop('last_name', ''),
+            'last_name': validated_data.pop('last_name'),
             'email': validated_data.pop('email'),
             'password': validated_data.pop('password', None),
             'user_profile': validated_data.pop('user_profile', None),
         }
+        classes_data = validated_data.pop('classes')
 
-        classes_data = validated_data.pop('classes', [])
-
-        # Extract address data
-        address_data = {
-            'house_no': validated_data.pop('house_no', None),
-            'habitation': validated_data.pop('habitation', None),
-            'word_no': validated_data.pop('word_no', None),
-            'zone_no': validated_data.pop('zone_no', None),
-            'block': validated_data.pop('block', None),
-            'district': validated_data.pop('district', None),
-            'division': validated_data.pop('division', None),
-            'area_code': validated_data.pop('area_code', None),
-            'address_line': validated_data.pop('address_line', None),
-            'country': validated_data.pop('country', None),
-            'state': validated_data.pop('state', None),
-            'city': validated_data.pop('city', None),
-        }
-        address_data = {k: v for k, v in address_data.items() if v is not None}
-
-        # Extract banking data
-        banking_data = {
-            'account_no': validated_data.pop('account_no', None),
-            'ifsc_code': validated_data.pop('ifsc_code', None),
-            'holder_name': validated_data.pop('holder_name', None),
-        }
-        banking_data = {k: v for k, v in banking_data.items() if v is not None}
-
-        # Check for existing user email
         if User.objects.filter(email=user_data['email']).exists():
             raise serializers.ValidationError("User with this email already exists.")
 
-        # Create User
-        role, _ = Role.objects.get_or_create(name='student')
-        user = User.objects.create_user(**user_data)
-        user.role.add(role)
+        user = User.objects.create_user(
+            username=user_data['email'],  # or other unique username logic
+            email=user_data['email'],
+            first_name=user_data['first_name'],
+            last_name=user_data['last_name'],
+            password=user_data['password'],
+        )
+        user.middle_name = user_data['middle_name']
+        if user_data['user_profile']:
+            user.user_profile = user_data['user_profile']
+        user.save()
 
-        # Create Address
-        if address_data:
-            address_data['user'] = user
-            Address.objects.create(**address_data)
-
-        # Create Banking Details
-        if banking_data:
-            banking_data['user'] = user
-            banking_serializer = BankingDetailsSerializer(data=banking_data, context={'user': user})
-            banking_serializer.is_valid(raise_exception=True)
-            banking_serializer.save()
-
-        # Create Student
         student = Student.objects.create(user=user, **validated_data)
         student.classes.set(classes_data)
-
         return student
+
+    def update(self, instance, validated_data):
+        user = instance.user
+
+        user_fields = ['first_name', 'middle_name', 'last_name', 'email', 'user_profile']
+        for field in user_fields:
+            if field in validated_data:
+                setattr(user, field, validated_data.pop(field))
+        if 'password' in validated_data:
+            user.set_password(validated_data.pop('password'))
+        user.save()
+
+        if 'classes' in validated_data:
+            instance.classes.set(validated_data.pop('classes'))
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        return instance
+
+
+
+
+
 
 
 
@@ -245,12 +149,12 @@ class GuardianSerializer(serializers.ModelSerializer):
     user_profile = serializers.ImageField(required=False, allow_null=True, write_only=True)
     
     # Guardian Fields (include here)
-    phone_no = serializers.CharField(max_length=50)
-    annual_income = serializers.IntegerField()
+    phone_no = serializers.CharField(required=False, allow_null=True,max_length=50)
+    annual_income = serializers.IntegerField(required=False, allow_null=True,)
     means_of_livelihood = serializers.ChoiceField(choices=[('Govt', 'Government'), ('Non-Govt', 'Non-Government')], default='Govt')
-    qualification = serializers.CharField(max_length=300)
-    occupation = serializers.CharField(max_length=300)
-    designation = serializers.CharField(max_length=300)
+    qualification = serializers.CharField(required=False, allow_null=True,max_length=300)
+    occupation = serializers.CharField(required=False, allow_null=True,max_length=300)
+    designation = serializers.CharField(required=False, allow_null=True,max_length=300)
 
     class Meta:
         model = Guardian
@@ -347,14 +251,6 @@ from .models import StudentYearLevel
 
 
 
-    
-#     class Meta:
-#         model = Guardian
-#         exclude = ["user"]
-#     #     extra_kwargs = {
-#     # 'password': {'write_only': True},
-#         # }    
-        
 
 ## As of 29May25 at 02:30 PM
 class StudentYearLevelSerializer(serializers.ModelSerializer):
@@ -375,5 +271,6 @@ class StudentYearLevelSerializer(serializers.ModelSerializer):
         first_name = obj.student.user.first_name or ''
         last_name = obj.student.user.last_name or ''
         return f"{first_name} {last_name}".strip()
+
 
 

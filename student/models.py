@@ -9,12 +9,12 @@ from decimal import Decimal
 
 class Student(models.Model):
     user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True)
-    father_name=models.CharField(max_length=250)
-    mother_name=models.CharField(max_length=250)
+    father_name=models.CharField(max_length=250,null=True, blank=True)
+    mother_name=models.CharField(max_length=250,null=True, blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
-    gender = models.CharField(max_length=50)
+    gender = models.CharField(max_length=50,null=True, blank=True)
     # enrolment_date = models.DateField(null=True, blank=True)
-    religion = models.CharField(max_length=50)
+    religion = models.CharField(max_length=50,null=True, blank=True)
     category = models.CharField(
     max_length=10,
     choices=[
@@ -26,10 +26,10 @@ class Student(models.Model):
     default='GEN'
 )
 
-    height = models.FloatField()
-    weight = models.FloatField()
-    blood_group = models.CharField(max_length=5)
-    number_of_siblings = models.IntegerField()
+    height = models.FloatField(null=True, blank=True)
+    weight = models.FloatField(null=True, blank=True)
+    blood_group = models.CharField(max_length=5,null=True, blank=True)
+    number_of_siblings = models.IntegerField(null=True, blank=True)
 
     # Many-to-many relationship with classPeriod
     classes = models.ManyToManyField(
@@ -53,8 +53,8 @@ class Guardian(models.Model):
         null=True,
         related_name="guardian_relation"
     )
-    phone_no = models.CharField(max_length=50)
-    annual_income = models.IntegerField()
+    phone_no = models.CharField(max_length=50,null=True, blank=True)
+    annual_income = models.IntegerField(null=True, blank=True)
     
     means_of_livelihood = models.CharField(
         max_length=10,
@@ -65,9 +65,9 @@ class Guardian(models.Model):
         default='Govt'
     )
     
-    qualification = models.CharField(max_length=300)
-    occupation = models.CharField(max_length=300)
-    designation = models.CharField(max_length=300)
+    qualification = models.CharField(max_length=300,null=True, blank=True)
+    occupation = models.CharField(max_length=300,null=True, blank=True)
+    designation = models.CharField(max_length=300,null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name}" if self.user else "No User"

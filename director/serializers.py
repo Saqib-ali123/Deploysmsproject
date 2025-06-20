@@ -1,4 +1,5 @@
 from datetime import date
+import re
 from rest_framework import serializers
 from .models import *
 from django.core.exceptions import MultipleObjectsReturned
@@ -6,6 +7,12 @@ from django.db import IntegrityError
 from student.serializers import *
 # from authentication.serializers import UserSerializer
 from uuid import uuid4
+from django.utils import timezone
+from decimal import Decimal
+from collections import defaultdict
+from django.db.models import Max
+
+
 from django.utils import timezone
 from decimal import Decimal
 from collections import defaultdict
@@ -45,35 +52,31 @@ class ClassPeriodSerializer(serializers.ModelSerializer):
 class BankingDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = BankingDetail
-        fields = ["account_no", "ifsc_code", "holder_name"]
+        fields = ["id", "account_no", "ifsc_code", "holder_name"]
         extra_kwargs = {
-            "user": {"read_only": True}  # exclude user from POST input
+            "user": {"read_only": True}
         }
 
+    
     def create(self, validated_data):
-        # user must be passed manually via serializer context or from parent
-        user = self.context.get("user")  # get user from context
+        user = self.context.get("user")
         if not user:
             raise serializers.ValidationError("User is required to create banking detail.")
-
         return BankingDetail.objects.create(user=user, **validated_data)
 
     def update(self, instance, validated_data):
+        account_no = validated_data.get("account_no")
+        if account_no and account_no != instance.account_no:
+            if BankingDetail.objects.filter(account_no=account_no).exclude(id=instance.id).exists():
+                raise serializers.ValidationError({
+                    "account_no": "This account number is already in use by another user."
+                })
         instance.account_no = validated_data.get("account_no", instance.account_no)
         instance.ifsc_code = validated_data.get("ifsc_code", instance.ifsc_code)
         instance.holder_name = validated_data.get("holder_name", instance.holder_name)
         instance.save()
         return instance
 
-    def to_representation(self, instance):
-        rep = super().to_representation(instance)
-        rep.update({
-            "first_name": instance.user.first_name,
-            "middle_name": instance.user.middle_name,
-            "last_name": instance.user.last_name,
-            # "email": instance.user.email,  # 
-        })
-        return rep
 
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -124,9 +127,9 @@ class CitySerializer(serializers.ModelSerializer):
 
 
 class AddressSerializer(serializers.ModelSerializer):
-    country = serializers.PrimaryKeyRelatedField(queryset=Country.objects.all())
-    state = serializers.PrimaryKeyRelatedField(queryset=State.objects.all())
-    city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all())
+    country = serializers.PrimaryKeyRelatedField(queryset=Country.objects.all(),write_only=True)
+    state = serializers.PrimaryKeyRelatedField(queryset=State.objects.all(),write_only=True)
+    city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all(),write_only=True)
 
     country_name = serializers.CharField(source='country.name', read_only=True)
     state_name = serializers.CharField(source='state.name', read_only=True)
@@ -168,6 +171,10 @@ class AddressSerializer(serializers.ModelSerializer):
 
         return data
 
+    def create(self, validated_data):
+            user = self.context['request'].user  # assuming request is passed in context
+            return Address.objects.create(user=user, **validated_data)
+
 
 
 class SchoolYearSerializer(serializers.ModelSerializer):
@@ -206,34 +213,44 @@ class TermSerializer(serializers.ModelSerializer):
 
 
 class DirectorProfileSerializer(serializers.ModelSerializer):
+    # User fields
     first_name = serializers.CharField(max_length=100, write_only=True)
     middle_name = serializers.CharField(max_length=100, write_only=True, allow_blank=True, required=False)
     last_name = serializers.CharField(max_length=100, write_only=True)
     email = serializers.EmailField(write_only=True)
-    password = serializers.CharField(write_only=True,required=False, allow_null=True)
+    password = serializers.CharField(write_only=True, required=False, allow_null=True)
     user_profile = serializers.ImageField(required=False, allow_null=True, write_only=True)
+
+    # Director fields
+    phone_no = serializers.CharField(max_length=250, required=False, allow_blank=True)
+    gender = serializers.CharField(max_length=50, required=False, allow_blank=True)
 
     class Meta:
         model = Director
         exclude = ["user"]
 
     def create(self, validated_data):
+        # Extract user-related data
         user_data = {
             "first_name": validated_data.pop("first_name"),
             "middle_name": validated_data.pop("middle_name", ""),
             "last_name": validated_data.pop("last_name"),
             "email": validated_data.pop("email"),
-            "password": validated_data.pop("password",""),
+            "password": validated_data.pop("password", ""),
             "user_profile": validated_data.pop("user_profile", None),
         }
 
+        phone_no = validated_data.pop("phone_no", None)
+        gender = validated_data.pop("gender", None)
+
+        # Assign role
         try:
             role, _ = Role.objects.get_or_create(name="director")
         except MultipleObjectsReturned:
             raise serializers.ValidationError("Multiple 'director' roles exist. Please fix your roles table.")
 
+        # Get or create user
         user = User.objects.filter(email=user_data["email"]).first()
-
         if user:
             if not user.role.filter(name="director").exists():
                 user.role.add(role)
@@ -243,7 +260,12 @@ class DirectorProfileSerializer(serializers.ModelSerializer):
             user.save()
 
         try:
-            director_profile = Director.objects.create(user=user, **validated_data)
+            director_profile = Director.objects.create(
+                user=user,
+                phone_no=phone_no,
+                gender=gender,
+                **validated_data
+            )
         except IntegrityError:
             raise serializers.ValidationError("User with this email already exists.")
 
@@ -252,16 +274,21 @@ class DirectorProfileSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         user = instance.user
 
+        # Update user info
         user.first_name = validated_data.get("first_name", user.first_name)
         user.middle_name = validated_data.get("middle_name", user.middle_name)
         user.last_name = validated_data.get("last_name", user.last_name)
         user.email = validated_data.get("email", user.email)
 
-        if "password" in validated_data:
+        if "password" in validated_data and validated_data["password"]:
             user.set_password(validated_data["password"])
 
         if "user_profile" in validated_data:
             user.user_profile = validated_data.get("user_profile")
+
+        # Update director fields
+        instance.phone_no = validated_data.get("phone_no", instance.phone_no)
+        instance.gender = validated_data.get("gender", instance.gender)
 
         try:
             user.save()
@@ -279,6 +306,8 @@ class DirectorProfileSerializer(serializers.ModelSerializer):
             "last_name": instance.user.last_name,
             "email": instance.user.email,
             "user_profile": instance.user.user_profile.url if instance.user.user_profile else None,
+            "phone_no": instance.phone_no,
+            "gender": instance.gender,
         })
         return representation
 
@@ -286,41 +315,109 @@ class DirectorProfileSerializer(serializers.ModelSerializer):
 
 
 
-# ***************guardin type *****************
+
+
+# ***************chnag varilable name *****************************
 class AdmissionSerializer(serializers.ModelSerializer):
-    student = StudentSerializer(write_only=True)
-    guardian = GuardianSerializer(write_only=True)
-    guardian_type = serializers.PrimaryKeyRelatedField(
-        queryset=GuardianType.objects.all(), write_only=True
+    # Use SerializerMethodField to output nested student and guardian data
+    student_input = serializers.SerializerMethodField(read_only=True)
+    guardian_input = serializers.SerializerMethodField(read_only=True)
+    
+    address = serializers.SerializerMethodField(read_only=True)
+    banking_detail = serializers.SerializerMethodField(read_only=True)
+
+    guardian_type = serializers.SerializerMethodField(read_only=True)
+    guardian_type_input = serializers.SlugRelatedField(
+        slug_field='name',
+        queryset=GuardianType.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
+    
+    year_level = serializers.SlugRelatedField(
+        slug_field='level_name',
+        queryset=YearLevel.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    
+    school_year = serializers.SlugRelatedField(
+        slug_field='year_name',
+        queryset=SchoolYear.objects.all(),
+        required=False,
+        allow_null=True,
     )
 
-    student_data = serializers.SerializerMethodField()
+    # These are write-only inputs for creating/updating admission
+    student = StudentSerializer(write_only=True, required=True)
+    guardian = GuardianSerializer(write_only=True, required=True)
+    address_input = AddressSerializer(write_only=True, required=False, allow_null=True)
+    banking_detail_input = BankingDetailsSerializer(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Admission
         fields = [
-            'id', 'student', 'guardian', 'guardian_type', 'student_data',
+            'id',
+            'student_input', 'guardian_input',  # output nested data
+            'address', 'banking_detail',
+            'student', 'guardian',  # write-only input nested data
+            'address_input', 'banking_detail_input',
+            'guardian_type', 'guardian_type_input',
+            'year_level', 'school_year',
             'admission_date', 'previous_school_name', 'previous_standard_studied',
-            'tc_letter', 'year_level', 'school_year',
-            'emergency_contact_n0', 'entire_road_distance_from_home_to_school',
-            'obtain_marks', 'total_marks', 'previous_percentage'
+            'tc_letter', 'emergency_contact_n0', 'entire_road_distance_from_home_to_school',
+            'obtain_marks', 'total_marks', 'previous_percentage',
         ]
-        read_only_fields = ['admission_date']
+        read_only_fields = [
+            'admission_date',
+            'student_input',
+            'guardian_input',
+            'guardian_type',
+            'address',
+            'banking_detail'
+        ]
 
-    def get_student_data(self, obj):
-        return StudentSerializer(obj.student).data
+    def get_student_input(self, obj):
+        if obj.student:
+            return StudentSerializer(obj.student).data
+        return None
+
+    def get_guardian_input(self, obj):
+        if obj.guardian:
+            return GuardianSerializer(obj.guardian).data
+        return None
+
+    def get_address(self, obj):
+        address = Address.objects.filter(user=obj.student.user).first()
+        return AddressSerializer(address).data if address else None
+
+    def get_banking_detail(self, obj):
+        banking = BankingDetail.objects.filter(user=obj.student.user).first()
+        return BankingDetailsSerializer(banking).data if banking else None
+
+    def get_guardian_type(self, obj):
+        try:
+            sg = StudentGuardian.objects.get(student=obj.student, guardian=obj.guardian)
+            return sg.guardian_type.name
+        except StudentGuardian.DoesNotExist:
+            return None
 
     def create(self, validated_data):
-        student_data = validated_data.pop("student")
-        guardian_data = validated_data.pop("guardian")
-        guardian_type = validated_data.pop("guardian_type", '')
+        student_data = validated_data.pop('student')
+        guardian_data = validated_data.pop('guardian')
+        address_data = validated_data.pop('address_input', None)
+        banking_data = validated_data.pop('banking_detail_input', None)
+        guardian_type = validated_data.pop('guardian_type_input', None)
+        year_level = validated_data.pop('year_level', None)
+        school_year = validated_data.pop('school_year', None)
 
-        # --- Student creation ---
-        student_email = student_data.get("email")
-        if Student.objects.filter(user__email__iexact=student_email).exists():
-            raise serializers.ValidationError({"student_email": "A student with this email already exists."})
-
-        classes_data = student_data.pop("classes", [])
+        classes_data = student_data.pop('classes', [])
+        if isinstance(classes_data, str):
+            try:
+                classes_data = [int(classes_data)]
+            except ValueError:
+                raise serializers.ValidationError({"student.classes": "Invalid class ID format."})
 
         user_data = {
             'first_name': student_data.pop('first_name', ''),
@@ -331,113 +428,168 @@ class AdmissionSerializer(serializers.ModelSerializer):
             'user_profile': student_data.pop('user_profile', None),
         }
 
-        if User.objects.filter(email=user_data['email']).exists():
-            raise serializers.ValidationError("User with this email already exists.")
+        user = User.objects.filter(email__iexact=user_data['email']).first()
+        if not user:
+            role, _ = Role.objects.get_or_create(name='student')
+            user = User.objects.create_user(**user_data)
+            user.role.add(role)
 
-        role, _ = Role.objects.get_or_create(name='student')
-        user = User.objects.create_user(**user_data)
-        user.role.add(role)
+        student, created = Student.objects.get_or_create(user=user, defaults=student_data)
+        if not created:
+            raise serializers.ValidationError({"student": "Student already exists for this user."})
 
-        # Address data
-        address_data = {
-            'house_no': student_data.pop('house_no', None),
-            'habitation': student_data.pop('habitation', None),
-            'word_no': student_data.pop('word_no', None),
-            'zone_no': student_data.pop('zone_no', None),
-            'block': student_data.pop('block', None),
-            'district': student_data.pop('district', None),
-            'division': student_data.pop('division', None),
-            'area_code': student_data.pop('area_code', None),
-            'address_line': student_data.pop('address_line', None),
-            'country': student_data.pop('country', None),
-            'state': student_data.pop('state', None),
-            'city': student_data.pop('city', None),
-        }
-        address_data = {k: v for k, v in address_data.items() if v is not None}
-
-        # Banking data
-        banking_data = {
-            'account_no': student_data.pop('account_no', None),
-            'ifsc_code': student_data.pop('ifsc_code', None),
-            'holder_name': student_data.pop('holder_name', None),
-        }
-        banking_data = {k: v for k, v in banking_data.items() if v is not None}
-
-        student_data.pop('address', None)
-        student_data.pop('banking_detail', None)
-
-        # Create student
-        student = Student.objects.create(user=user, **student_data)
-        student.classes.set(classes_data)
+        if classes_data:
+            student.classes.set(classes_data)
 
         if address_data:
-            address_data['user'] = user
-            Address.objects.create(**address_data)
-
+            Address.objects.update_or_create(user=user, defaults=address_data)
         if banking_data:
-            banking_serializer = BankingDetailsSerializer(data=banking_data, context={'user': user})
-            banking_serializer.is_valid(raise_exception=True)
-            banking_serializer.save()
+            BankingDetail.objects.update_or_create(user=user, defaults=banking_data)
 
-        # --- Guardian creation ---
-        guardian_email = guardian_data.get("email")
-        guardian = Guardian.objects.filter(user__email__iexact=guardian_email).first()
-        if not guardian:
+        guardian_user = User.objects.filter(email__iexact=guardian_data.get('email')).first()
+        if guardian_user:
+            guardian = Guardian.objects.filter(user=guardian_user).first()
+            if not guardian:
+                guardian_serializer = GuardianSerializer(data=guardian_data)
+                guardian_serializer.is_valid(raise_exception=True)
+                guardian = guardian_serializer.save()
+        else:
             guardian_serializer = GuardianSerializer(data=guardian_data)
             guardian_serializer.is_valid(raise_exception=True)
             guardian = guardian_serializer.save()
 
-        # --- Admission ---
-        admission_data = {
-            'student': student,
-            'guardian': guardian,
-            'previous_school_name': validated_data.get('previous_school_name'),
-            'previous_standard_studied': validated_data.get('previous_standard_studied'),
-            'tc_letter': validated_data.get('tc_letter'),
-            'year_level': validated_data.get('year_level'),
-            'school_year': validated_data.get('school_year'),
-            'emergency_contact_n0': validated_data.get('emergency_contact_n0'),
-            'entire_road_distance_from_home_to_school': validated_data.get('entire_road_distance_from_home_to_school'),
-            'obtain_marks': validated_data.get('obtain_marks'),
-            'total_marks': validated_data.get('total_marks'),
-            'previous_percentage': validated_data.get('previous_percentage'),
-        }
-
-        admission = Admission.objects.create(**admission_data)
-
-        # --- StudentGuardian ---
-        StudentGuardian.objects.get_or_create(
+        admission = Admission.objects.create(
             student=student,
             guardian=guardian,
-            guardian_type=guardian_type
+            previous_school_name=validated_data.get('previous_school_name'),
+            previous_standard_studied=validated_data.get('previous_standard_studied'),
+            tc_letter=validated_data.get('tc_letter'),
+            year_level=year_level,
+            school_year=school_year,
+            emergency_contact_n0=validated_data.get('emergency_contact_n0'),
+            entire_road_distance_from_home_to_school=validated_data.get('entire_road_distance_from_home_to_school'),
+            obtain_marks=validated_data.get('obtain_marks'),
+            total_marks=validated_data.get('total_marks'),
+            previous_percentage=validated_data.get('previous_percentage'),
         )
 
-        # --- StudentYearLevel ---
-        StudentYearLevel.objects.get_or_create(
-            student=student,
-            level=admission.year_level,
-            year=admission.school_year
-        )
+        if guardian_type:
+            StudentGuardian.objects.update_or_create(
+                student=student, guardian=guardian, defaults={'guardian_type': guardian_type}
+            )
+
+        if year_level and school_year:
+            StudentYearLevel.objects.update_or_create(
+                student=student, level=year_level, year=school_year
+            )
 
         return admission
 
-    def to_representation(self, instance):
-        rep = super().to_representation(instance)
-        student_data = StudentSerializer(instance.student).data
-        rep["student_data"] = student_data
-        rep["guardian"] = GuardianSerializer(instance.guardian).data
+    def update(self, instance, validated_data):
+        student_data = validated_data.pop('student', None)
+        guardian_data = validated_data.pop('guardian', None)
+        address_data = validated_data.pop('address_input', None)
+        banking_data = validated_data.pop('banking_detail_input', None)
+        guardian_type = validated_data.pop('guardian_type_input', None)
+        year_level = validated_data.pop('year_level', None)
+        school_year = validated_data.pop('school_year', None)
 
-        student_guardian = StudentGuardian.objects.filter(
-            student=instance.student,
-            guardian=instance.guardian
-        ).first()
+        user = self.context.get("user") or instance.student.user
 
-        rep["guardian_type"] = student_guardian.guardian_type.name if student_guardian else None
-        rep["year_level"] = instance.year_level.level_name if instance.year_level else None
-        rep["school_year"] = instance.school_year.year_name if instance.school_year else None
-        rep['banking_detail'] = student_data.get('banking_detail')
+        if student_data:
+            student_serializer = StudentSerializer(instance.student, data=student_data, partial=True)
+            student_serializer.is_valid(raise_exception=True)
+            student_serializer.save()
 
-        return rep
+            classes_data = student_data.get('classes')
+            if isinstance(classes_data, str):
+                try:
+                    classes_data = [int(classes_data)]
+                except ValueError:
+                    raise serializers.ValidationError({"student.classes": "Invalid class ID format."})
+
+            if classes_data:
+                instance.student.classes.set(classes_data)
+
+        if guardian_data:
+            guardian_serializer = GuardianSerializer(instance.guardian, data=guardian_data, partial=True)
+            guardian_serializer.is_valid(raise_exception=True)
+            guardian_serializer.save()
+
+        if address_data:
+            for key in ['city', 'state', 'country']:
+                val = address_data.get(key)
+                if hasattr(val, 'id'):
+                    address_data[key] = val.id
+
+            try:
+                address_instance = Address.objects.get(user=user)
+                address_serializer = AddressSerializer(address_instance, data=address_data, partial=True)
+            except Address.DoesNotExist:
+                address_serializer = AddressSerializer(data=address_data)
+
+            address_serializer.is_valid(raise_exception=True)
+            address_serializer.save(user=user)
+
+        if banking_data:
+            current_account_no = str(banking_data.get('account_no'))
+
+            try:
+                banking_instance = BankingDetail.objects.get(user=user)
+                existing_account_no = str(banking_instance.account_no)
+
+                if existing_account_no == current_account_no:
+                    banking_data.pop('account_no', None)
+                else:
+                    if BankingDetail.objects.filter(account_no=current_account_no).exclude(user_id=user.id).exists():
+                        raise serializers.ValidationError({
+                            "banking_detail_input": {
+                                "account_no": ["This account number is already in use by another user."]
+                            }
+                        })
+
+                banking_serializer = BankingDetailsSerializer(banking_instance, data=banking_data, partial=True)
+                banking_serializer.is_valid(raise_exception=True)
+                banking_serializer.save(user=user)
+
+            except BankingDetail.DoesNotExist:
+                if BankingDetail.objects.filter(account_no=current_account_no).exists():
+                    raise serializers.ValidationError({
+                        "banking_detail_input": {
+                            "account_no": ["This account number is already in use."]
+                        }
+                    })
+
+                banking_serializer = BankingDetailsSerializer(data=banking_data)
+                banking_serializer.is_valid(raise_exception=True)
+                banking_serializer.save(user=user)
+
+        if guardian_type:
+            StudentGuardian.objects.update_or_create(
+                student=instance.student,
+                guardian=instance.guardian,
+                defaults={"guardian_type": guardian_type}
+            )
+
+        if year_level:
+            instance.year_level = year_level
+        if school_year:
+            instance.school_year = school_year
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance
+
+
+
+
+
+
+
+
+
 
 
 
@@ -497,9 +649,6 @@ class ClassPeriodSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-    
-# As of 04June2025 at 12:15 AM
-# Re-implementation of Fee module based on the provided fee card
 
 
 # Added as of 06June25 at 02:50 PM
@@ -757,12 +906,6 @@ class RazorpayConfirmPaymentSerializer(serializers.Serializer):
 
 
 
-### Previous Razorpay Code commented as of 10June25
-# class RazorpayPaymentInitiateSerializer(serializers.Serializer):
-#     student_id = serializers.IntegerField()
-#     fee_structure_id = serializers.IntegerField()
-#     fee_type_id = serializers.IntegerField()
-#     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 
 
@@ -870,56 +1013,8 @@ class OfficeStaffSerializer(serializers.ModelSerializer):
     
     # ******************DocumentTypeSerializer*************************
     
-# class DocumentTypeSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = DocumentType
-#         fields = "__all__" 
-            
-    
-# class FileSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = File
-#         fields = ['id', 'file']
 
-
-# class DocumentSerializer(serializers.ModelSerializer):
-#     files = FileSerializer(many=True, read_only=True)
-#     uploaded_files = serializers.ListField(
-#         child=serializers.FileField(),
-#         write_only=True,
-#         required=True,
-#         allow_empty=False
-#     )
-
-#     document_types = serializers.PrimaryKeyRelatedField(
-#         queryset=DocumentType.objects.all(),
-#         many=True,
-#         required=True,
-#         allow_empty=False
-#     )
-
-#     class Meta:
-#         model = Document
-#         fields = [
-#             'id', 'document_types', 'files', 'uploaded_files',
-#             'student', 'teacher', 'guardian', 'office_staff', 'uploaded_at'
-#         ]
-
-#     def create(self, validated_data):
-#         uploaded_files = validated_data.pop('uploaded_files')
-#         document_types = validated_data.pop('document_types')
-
-#         # Create Document first
-#         document = Document.objects.create(**validated_data)
-#         document.document_types.set(document_types)
-
-#         for uploaded_file in uploaded_files:
-#             file_instance = File(file=uploaded_file, document=document)
-#             file_instance.save()  # This triggers upload_to() and saves the file
-#             document.files.add(file_instance)
-
-#         return document
-import json
+# import json
 
 class DocumentTypeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -933,6 +1028,7 @@ class FileSerializer(serializers.ModelSerializer):
         fields = ['id', 'file']
 
 
+
 class DocumentSerializer(serializers.ModelSerializer):
     files = FileSerializer(many=True, read_only=True)
 
@@ -943,6 +1039,7 @@ class DocumentSerializer(serializers.ModelSerializer):
         allow_empty=False
     )
 
+    # Accepts list of IDs at POST/PUT time
     document_types = serializers.PrimaryKeyRelatedField(
         queryset=DocumentType.objects.all(),
         many=True,
@@ -950,7 +1047,6 @@ class DocumentSerializer(serializers.ModelSerializer):
         allow_empty=False
     )
 
-    # identities as a list (NOT JSONField, just normal string field storing JSON)
     identities = serializers.ListField(
         child=serializers.CharField(),
         write_only=True
@@ -972,6 +1068,15 @@ class DocumentSerializer(serializers.ModelSerializer):
         except:
             return []
 
+    def to_representation(self, instance):
+        """Customize the output to show document type names instead of just IDs."""
+        representation = super().to_representation(instance)
+        document_types = instance.document_types.all()
+        representation['document_types'] = [
+            {"id": dt.id, "name": dt.name} for dt in document_types
+        ]
+        return representation
+
     def create(self, validated_data):
         import json
 
@@ -991,3 +1096,4 @@ class DocumentSerializer(serializers.ModelSerializer):
             File.objects.create(file=uploaded_file, document=document)
 
         return document
+

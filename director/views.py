@@ -3,8 +3,6 @@ from rest_framework.response import Response
 from django.db.models import Count
 from collections import OrderedDict
 from .serializers import *
-from rest_framework import status
-from rest_framework import viewsets
 from rest_framework import filters
 from .models import *
 from rest_framework .views import APIView       # As of 07May25 at 12:30 PM
@@ -12,16 +10,25 @@ from rest_framework .views import APIView       # As of 07May25 at 12:30 PM
 from rest_framework.filters import SearchFilter
 from django.db.models import Sum
 from rest_framework.decorators import action
+
 from django.db.models.functions import Coalesce
 from django.db.models import Sum, DecimalField
 # views.py
 
 from django.db.models import Count, F, ExpressionWrapper, IntegerField ,Func , Value
 
+
 import razorpay
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from datetime import datetime
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework import viewsets, status
+import json  # 🔸 This goes at the top of the file
+from django.db.models import Q
+from collections import OrderedDict, defaultdict
+
 client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
 
 import random
@@ -32,7 +39,7 @@ from django.db.models import Q
 from django.db.models import Q, Sum, Value, FloatField
 
 
-# client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
+
 
 # client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
@@ -49,7 +56,7 @@ def generate_receipt_number():
 
 @api_view(["GET"])
 def Director_Dashboard_Summary(request):
-  
+
     current_year = datetime.now().year
 
     summary = {
@@ -769,95 +776,7 @@ def ClassRoomTypeView(request, pk=None):
             return Response({"Message": "Data not found"}, status.HTTP_404_NOT_FOUND)
 
 
-# @api_view(["GET", "POST", "PUT", "DELETE"])
-# def RoleView(request, pk=None):
-#     if request.method == "GET":
-#         if pk is not None:
-#             try:
-#                 role = Role.objects.get(pk=pk)
-#                 serialize_Data = RoleSerializer(role, many=False)
-#                 return Response(serialize_Data.data, status=status.HTTP_200_OK)
-
-#             except Role.DoesNotExist:
-#                 return Response(
-#                     {"message": "Role not found"}, status=status.HTTP_404_NOT_FOUND
-#                 )
-
-#         else:
-#             roles = Role.objects.all()
-#             serializerData = RoleSerializer(roles, many=True)
-#             return Response(serializerData.data, status=status.HTTP_200_OK)
-
-#     elif request.method == "POST":
-#         json_data = request.data
-
-#         # Here we are converting the entered role name to lowercase
-#         role = json_data.get("name", "").lower()
-
-#         print(role)
-#         json_data["name"] = role
-
-#         # Here we are checking whether entered role already exist or not
-#         role = Role.objects.filter(name__iexact=role)
-
-#         if role.exists():
-#             return Response(
-#                 {"message": "Role already exists"}, status=status.HTTP_400_BAD_REQUEST
-#             )
-
-#         serializer = RoleSerializer(data=json_data)
-
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(
-#                 {"message": "New Role added Successfully"},
-#                 status=status.HTTP_201_CREATED,
-#             )
-
-#         return Response({"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST)
-
-#     elif request.method == "PUT":
-#         try:
-#             role = Role.objects.get(pk=pk)
-
-#             if request.data.get("name", None) is None:
-#                 return Response(
-#                     {"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST
-#                 )
-
-#             request.data["name"] = request.data["name"].lower()
-
-#             updated_Role = RoleSerializer(instance=role, data=request.data)
-
-#             if updated_Role.is_valid():
-#                 updated_Role.save()
-#                 return Response(
-#                     {"message": "Role updated Successfully"},
-#                     status=status.HTTP_201_CREATED,
-#                 )
-
-#             return Response(
-#                 {"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST
-#             )
-
-#         except Role.DoesNotExist:
-#             return Response(
-#                 {"message": "Role ID not Found"}, status=status.HTTP_404_NOT_FOUND
-#             )
-
-#     elif request.method == "DELETE":
-#         try:
-#             role = Role.objects.get(pk=pk)
-#             role.delete()
-#             return Response(
-#                 {"message": "Role deleted Successfuly"},
-#                 status=status.HTTP_204_NO_CONTENT,
-#             )
-
-#         except Role.DoesNotExist:
-#             return Response(
-#                 {"message": "Role not Found"}, status=status.HTTP_404_NOT_FOUND
-#             )
+#
 
 ### --- Added this as of 06June25 at 12:00 PM
 
@@ -965,9 +884,6 @@ class CityView(viewsets.ModelViewSet):
 
 # ===========Address==========
 
-# class AddressView(viewsets.ModelViewSet):
-#     queryset = Address.objects.all()
-#     serializer_class = AddressSerializer
 
 
 # ===========Period============
@@ -1019,15 +935,15 @@ class CityView(viewsets.ModelViewSet):
 
 
 # ===========Address==========
-# class AddressView(viewsets.ModelViewSet):
-#     queryset = Address.objects.all()
-#     serializer_class = AddressSerializer
+
 
 # Added as of 28April25
 
 class AddressView(viewsets.ModelViewSet):
     queryset = Address.objects.all()
     serializer_class = AddressSerializer
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 # ===========Period============
@@ -1073,6 +989,12 @@ class BankingDetailView(viewsets.ModelViewSet):
 class DirectorView(viewsets.ModelViewSet):
     queryset = Director.objects.all()
     serializer_class = DirectorProfileSerializer
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]  # Public access
+        return [IsAuthenticated()]  # JWT required for others
+
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -1090,6 +1012,27 @@ class DirectorView(viewsets.ModelViewSet):
         return Response(
             {"success": "Successfully deleted"}, status=status.HTTP_204_NO_CONTENT
         )
+        
+        
+    # ******************JWt********************
+    @action(detail=False, methods=['get', 'put', 'patch'], url_path='director_my_profile', permission_classes=[IsAuthenticated])
+    def director_my_profile(self, request):
+        user = request.user
+
+        try:
+            director = Director.objects.get(user=user)
+        except Director.DoesNotExist:
+            return Response({"error": "No director profile found for this user."}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.method in ['PUT', 'PATCH']:
+            partial = request.method == 'PATCH'
+            serializer = self.get_serializer(director, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response({"success": "Director profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(director)
+        return Response(serializer.data, status=status.HTTP_200_OK)    
 
 
 class BankingDetails(viewsets.ModelViewSet):
@@ -1105,10 +1048,40 @@ class TermView(viewsets.ModelViewSet):
 class AdmissionView(viewsets.ModelViewSet):
     queryset = Admission.objects.all()
     serializer_class = AdmissionSerializer
+    # parser_classes=[MultiPartParser,FormParser]
+    
+    # ***************OfficeStaffView**************
     
 class OfficeStaffView(viewsets.ModelViewSet):
     queryset=OfficeStaff.objects.all()
-    serializer_class = OfficeStaffSerializer    
+    serializer_class = OfficeStaffSerializer  
+    
+    
+    def get_permissions(self):
+        # Public access to list and retrieve
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
+    # ******************JWT***************
+    @action(detail=False, methods=['get', 'put', 'patch'], url_path='OfficeStaff_my_profile', permission_classes=[IsAuthenticated])
+    def OfficeStaff_my_profile(self, request):
+        user = request.user
+
+        try:
+            staff = OfficeStaff.objects.get(user=user)
+        except OfficeStaff.DoesNotExist:
+            return Response({"error": "No office staff profile found for this user."}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.method in ['PUT', 'PATCH']:
+            partial = request.method == 'PATCH'
+            serializer = self.get_serializer(staff, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response({"success": "Office staff profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(staff)
+        return Response(serializer.data, status=status.HTTP_200_OK)  
     
 #  ***************************   
 class DocumentTypeView(viewsets.ModelViewSet):
@@ -1120,38 +1093,8 @@ class FileView(viewsets.ModelViewSet):
     serializer_class = FileSerializer 
 
 
-# from rest_framework.parsers import MultiPartParser, FormParser
 
-# class DocumentView(viewsets.ModelViewSet):
-#     queryset = Document.objects.all()
-#     serializer_class = DocumentSerializer
-#     parser_classes = (MultiPartParser, FormParser)
 
-#     def create(self, request, *args, **kwargs):
-#         print("Request FILES:", request.FILES)
-#         print("Request DATA:", request.data)
-
-#         files = request.FILES.getlist('uploaded_files')
-#         document_types = request.data.getlist('document_types')
-
-#         if not files:
-#             return Response({"error": "No files uploaded"}, status=status.HTTP_400_BAD_REQUEST)
-#         if not document_types:
-#             return Response({"error": "At least one document type must be selected."}, status=status.HTTP_400_BAD_REQUEST)
-
-#         data = request.data.copy()
-#         data.setlist('uploaded_files', files)
-#         data.setlist('document_types', document_types)
-
-#         serializer = self.get_serializer(data=data)
-#         serializer.is_valid(raise_exception=True)
-#         self.perform_create(serializer)
-#         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-from rest_framework import viewsets, status
-from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
-import json  # 🔸 This goes at the top of the file
 
 class DocumentView(viewsets.ModelViewSet):
     queryset = Document.objects.all()
@@ -1188,35 +1131,7 @@ class DocumentView(viewsets.ModelViewSet):
 
 
 
-    # parser_classes = [MultiPartParser, FormParser]  # Important for file uploads
-
-    # def create(self, request, *args, **kwargs):
-    #     document_types = request.data.getlist('document_types')
-    #     student = request.data.get('student')
-    #     teacher = request.data.get('teacher')
-    #     guardian = request.data.get('guardian')
-    #     office_staff = request.data.get('office_staff')
-    #     uploaded_files = request.FILES.getlist('files')
-
-    #     if not uploaded_files:
-    #         return Response({"error": "No files uploaded"}, status=status.HTTP_400_BAD_REQUEST)
-
-    #     file_objs = [File.objects.create(file=f) for f in uploaded_files]
-
-    #     document = Document.objects.create(
-    #         student_id=student,
-    #         teacher_id=teacher,
-    #         guardian_id=guardian,
-    #         office_staff_id=office_staff
-    #     )
-    #     document.files.set(file_objs)
-    #     document.document_types.set(document_types)
-    #     document.save()
-
-    #     serializer = self.get_serializer(document)
-    #     return Response(serializer.data, status=status.HTTP_201_CREATED)
     
-# **********************************    
 
     
     
@@ -1239,12 +1154,14 @@ class ClassPeriodView(viewsets.ModelViewSet):
                 "details": result
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
+
      
     
 # As of 04June2025 at 12:15 AM
 # Re-implementation of Fee module based on the provided fee card
 from django.db.models import Q
 from collections import OrderedDict, defaultdict
+
 
 
 class FeeTypeView(viewsets.ModelViewSet):
@@ -1503,6 +1420,7 @@ class FeeRecordView(viewsets.ModelViewSet):
 
         if month:
             filters &= Q(month__iexact=month)
+
 
         if year_level.isdigit():
             filters &= Q(student__student_year_levels__level__id=year_level)
