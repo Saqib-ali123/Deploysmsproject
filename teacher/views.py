@@ -11,6 +11,7 @@ from rest_framework.filters import SearchFilter
 from rest_framework.decorators import action
 from director.models import *
 from django.db.models import Prefetch
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 
 class TeacherView(viewsets.ModelViewSet):
@@ -20,6 +21,17 @@ class TeacherView(viewsets.ModelViewSet):
 
     filter_backends = [filters.SearchFilter]
     search_fields = ['user__email', 'user__first_name', 'phone_no']
+    
+    # ***************with out JWT******************
+    def get_permissions(self):
+        if self.action in ['list', 'create']:
+            # Anyone can list all teachers or create a new one
+            permission_classes = [AllowAny]
+        else:
+            # For retrieve, update, partial_update, destroy - only logged in users
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+    
     
     @action(detail=False, methods=['post'], url_path='assign-teacher-details')
     def assign_teacher_details(self, request):
@@ -158,3 +170,24 @@ class TeacherView(viewsets.ModelViewSet):
             })
 
         return Response(response_data, status=status.HTTP_200_OK)
+    
+    
+    # ********************Jwt get/PUT***************
+    @action(detail=False, methods=['get', 'put', 'patch'], url_path='teacher_my_profile', permission_classes=[IsAuthenticated])
+    def teacher_my_profile(self, request):
+        user = request.user
+
+        try:
+            teacher = Teacher.objects.get(user=user)
+        except Teacher.DoesNotExist:
+            return Response({"error": "Teacher profile not found for this user."}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.method in ['PUT', 'PATCH']:
+            partial = request.method == 'PATCH'
+            serializer = self.get_serializer(teacher, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response({"success": "Teacher profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(teacher)
+        return Response(serializer.data, status=status.HTTP_200_OK)

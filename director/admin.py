@@ -23,6 +23,11 @@ admin.site.register(
         FeeRecord,
         File,
         Document,
-        DocumentType
+        DocumentType,
+        OfficeStaff,
+        City,
+        State,
+        Country,
+        Address
     ]
 )

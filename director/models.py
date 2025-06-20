@@ -85,8 +85,8 @@ class Address(models.Model):
 
 class Director(models.Model):
     user = models.OneToOneField("authentication.User", on_delete=models.SET_NULL,null=True)
-    phone_no = models.CharField(max_length=250, null=False)
-    gender = models.CharField(max_length=50)
+    phone_no = models.CharField(max_length=250, null=True, blank=True)
+    gender = models.CharField(max_length=50,null=True, blank=True)
 
     def __str__(self):
         return str(self.user)
@@ -98,7 +98,8 @@ class Director(models.Model):
 
 
 class BankingDetail(models.Model):
-    account_no = models.BigIntegerField(primary_key=True, unique=True)
+    account_no = models.BigIntegerField( )
+    # account_no = models.BigIntegerField(primary_key=True, unique=True)
     ifsc_code = models.CharField(max_length=225)
     holder_name = models.CharField(max_length=255)
     user = models.OneToOneField("authentication.User", on_delete=models.DO_NOTHING)
@@ -237,28 +238,7 @@ class ClassPeriod(models.Model):
         db_table = "ClassPeriod"
 
 
-### Admission shifted below for fee implementation previously it is here
 
-# As of 12May25 at 11:15 AM
-# class FeeType(models.Model):      #commented as of 04June25 at 12:00 AM
-#     name = models.CharField(max_length=100)
-#     description = models.TextField(blank=True, null=True)
-
-#     def __str__(self):
-#         return self.name
-    
-#     class Meta:
-#         verbose_name = "FeeType"
-#         verbose_name_plural = "FeeType"
-#         db_table = "FeeType"
- 
-        
- # As of 12May25 at 11:15 AM       
-# class FeeStructure(models.Model):         #commented as of 04June25 at 12:00 AM
-#     year_level = models.ForeignKey(YearLevel, on_delete=models.CASCADE)
-#     term = models.ForeignKey(Term, on_delete=models.CASCADE)
-#     fee_type = models.ForeignKey(FeeType, on_delete=models.CASCADE)
-#     total_fee = models.DecimalField(max_digits=10, decimal_places=2)
 
 class Admission(models.Model):
     student = models.ForeignKey(Student, on_delete=models.DO_NOTHING)
@@ -282,46 +262,12 @@ class Admission(models.Model):
             self.previous_percentage = 0  
         super().save(*args, **kwargs)
 
-#     def __str__(self):
-#         return f"{self.year_level} - {self.term} - {self.fee_type.name}"
 
-#     class Meta:
-#         verbose_name = "FeeStructure"
-#         verbose_name_plural = "FeeStructures"
-#         db_table = "FeeStructure"
 
     class Meta:
         db_table = "Admission"
 
-# # As of 08May25 at 11:38 AM
-# class Fee(models.Model):              #commented as of 04June25 at 12:00 AM
-#     student = models.ForeignKey(Student, on_delete=models.CASCADE)
-#     fee_structure = models.ForeignKey(FeeStructure, on_delete=models.SET_NULL, null=True, blank=True)
-#     fee_type = models.ForeignKey(FeeType, on_delete=models.CASCADE)
-#     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-#     payment_date = models.DateField(auto_now_add=True)
-#     payment_mode = models.CharField(
-#         max_length=20,
-#         choices=[('Cash', 'Cash'), ('Online', 'Online'), ('Cheque', 'Cheque')]
-#     )
-#     remarks = models.TextField(blank=True, null=True)
-#     receipt_number = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-#     razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
-#     razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
-#     razorpay_signature = models.CharField(max_length=200, blank=True, null=True)
 
-
-#     def __str__(self):
-#         return f"{self.student.user.first_name} - {self.fee_type.name} - {self.amount_paid} - {self.payment_date}"
-
-#     class Meta:
-#         verbose_name = "Fee"
-#         verbose_name_plural = "Fee"
-#         db_table = "Fee"
-
-
-# As of 04June2025 at 12:15 AM
-# Re-implementation of Fee module based on the provided fee card
 
 from django.db import models
 import random
@@ -345,7 +291,8 @@ class YearLevel(models.Model):
     level_order = models.IntegerField()
 
     def __str__(self):
-        return f"{self.level_order} {self.level_name}"
+        return f" {self.level_name}"
+        # return f"{self.level_order} {self.level_name}"
 
     class Meta:
         verbose_name = "Year Level"

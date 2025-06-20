@@ -12,18 +12,19 @@ from rest_framework .views import APIView       # As of 07May25 at 12:30 PM
 from rest_framework.filters import SearchFilter
 from django.db.models import Sum
 from rest_framework.decorators import action
-# import razorpay
+import razorpay
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from datetime import datetime
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import IsAuthenticated, AllowAny
+
 client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
 
 import random
 import string
 
-# client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
 
-client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
 ### Function to generate auto receipt no. called it inside initiate payment
 def generate_receipt_number():
@@ -38,11 +39,7 @@ def generate_receipt_number():
 
 @api_view(["GET"])
 def Director_Dashboard_Summary(request):
-    #  Check if director with given id exists
-    # try:
-    #     # director = Director.objects.get(id=id)
-    # except Director.DoesNotExist:
-    #     return Response({"error": "Director not found"}, status=status.HTTP_404_NOT_FOUND)
+   
 
     # Continue if director exists
     current_year = datetime.now().year
@@ -599,95 +596,7 @@ def ClassRoomTypeView(request, pk=None):
             return Response({"Message": "Data not found"}, status.HTTP_404_NOT_FOUND)
 
 
-# @api_view(["GET", "POST", "PUT", "DELETE"])
-# def RoleView(request, pk=None):
-#     if request.method == "GET":
-#         if pk is not None:
-#             try:
-#                 role = Role.objects.get(pk=pk)
-#                 serialize_Data = RoleSerializer(role, many=False)
-#                 return Response(serialize_Data.data, status=status.HTTP_200_OK)
-
-#             except Role.DoesNotExist:
-#                 return Response(
-#                     {"message": "Role not found"}, status=status.HTTP_404_NOT_FOUND
-#                 )
-
-#         else:
-#             roles = Role.objects.all()
-#             serializerData = RoleSerializer(roles, many=True)
-#             return Response(serializerData.data, status=status.HTTP_200_OK)
-
-#     elif request.method == "POST":
-#         json_data = request.data
-
-#         # Here we are converting the entered role name to lowercase
-#         role = json_data.get("name", "").lower()
-
-#         print(role)
-#         json_data["name"] = role
-
-#         # Here we are checking whether entered role already exist or not
-#         role = Role.objects.filter(name__iexact=role)
-
-#         if role.exists():
-#             return Response(
-#                 {"message": "Role already exists"}, status=status.HTTP_400_BAD_REQUEST
-#             )
-
-#         serializer = RoleSerializer(data=json_data)
-
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(
-#                 {"message": "New Role added Successfully"},
-#                 status=status.HTTP_201_CREATED,
-#             )
-
-#         return Response({"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST)
-
-#     elif request.method == "PUT":
-#         try:
-#             role = Role.objects.get(pk=pk)
-
-#             if request.data.get("name", None) is None:
-#                 return Response(
-#                     {"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST
-#                 )
-
-#             request.data["name"] = request.data["name"].lower()
-
-#             updated_Role = RoleSerializer(instance=role, data=request.data)
-
-#             if updated_Role.is_valid():
-#                 updated_Role.save()
-#                 return Response(
-#                     {"message": "Role updated Successfully"},
-#                     status=status.HTTP_201_CREATED,
-#                 )
-
-#             return Response(
-#                 {"message": "Invalid Data"}, status=status.HTTP_400_BAD_REQUEST
-#             )
-
-#         except Role.DoesNotExist:
-#             return Response(
-#                 {"message": "Role ID not Found"}, status=status.HTTP_404_NOT_FOUND
-#             )
-
-#     elif request.method == "DELETE":
-#         try:
-#             role = Role.objects.get(pk=pk)
-#             role.delete()
-#             return Response(
-#                 {"message": "Role deleted Successfuly"},
-#                 status=status.HTTP_204_NO_CONTENT,
-#             )
-
-#         except Role.DoesNotExist:
-#             return Response(
-#                 {"message": "Role not Found"}, status=status.HTTP_404_NOT_FOUND
-#             )
+#
 
 ### --- Added this as of 06June25 at 12:00 PM
 
@@ -795,9 +704,6 @@ class CityView(viewsets.ModelViewSet):
 
 # ===========Address==========
 
-# class AddressView(viewsets.ModelViewSet):
-#     queryset = Address.objects.all()
-#     serializer_class = AddressSerializer
 
 
 # ===========Period============
@@ -849,15 +755,15 @@ class CityView(viewsets.ModelViewSet):
 
 
 # ===========Address==========
-# class AddressView(viewsets.ModelViewSet):
-#     queryset = Address.objects.all()
-#     serializer_class = AddressSerializer
+
 
 # Added as of 28April25
 
 class AddressView(viewsets.ModelViewSet):
     queryset = Address.objects.all()
     serializer_class = AddressSerializer
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 # ===========Period============
@@ -903,6 +809,12 @@ class BankingDetailView(viewsets.ModelViewSet):
 class DirectorView(viewsets.ModelViewSet):
     queryset = Director.objects.all()
     serializer_class = DirectorProfileSerializer
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]  # Public access
+        return [IsAuthenticated()]  # JWT required for others
+
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -920,6 +832,27 @@ class DirectorView(viewsets.ModelViewSet):
         return Response(
             {"success": "Successfully deleted"}, status=status.HTTP_204_NO_CONTENT
         )
+        
+        
+    # ******************JWt********************
+    @action(detail=False, methods=['get', 'put', 'patch'], url_path='director_my_profile', permission_classes=[IsAuthenticated])
+    def director_my_profile(self, request):
+        user = request.user
+
+        try:
+            director = Director.objects.get(user=user)
+        except Director.DoesNotExist:
+            return Response({"error": "No director profile found for this user."}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.method in ['PUT', 'PATCH']:
+            partial = request.method == 'PATCH'
+            serializer = self.get_serializer(director, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response({"success": "Director profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(director)
+        return Response(serializer.data, status=status.HTTP_200_OK)    
 
 
 class BankingDetails(viewsets.ModelViewSet):
@@ -935,10 +868,40 @@ class TermView(viewsets.ModelViewSet):
 class AdmissionView(viewsets.ModelViewSet):
     queryset = Admission.objects.all()
     serializer_class = AdmissionSerializer
+    # parser_classes=[MultiPartParser,FormParser]
+    
+    # ***************OfficeStaffView**************
     
 class OfficeStaffView(viewsets.ModelViewSet):
     queryset=OfficeStaff.objects.all()
-    serializer_class = OfficeStaffSerializer    
+    serializer_class = OfficeStaffSerializer  
+    
+    
+    def get_permissions(self):
+        # Public access to list and retrieve
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
+    # ******************JWT***************
+    @action(detail=False, methods=['get', 'put', 'patch'], url_path='OfficeStaff_my_profile', permission_classes=[IsAuthenticated])
+    def OfficeStaff_my_profile(self, request):
+        user = request.user
+
+        try:
+            staff = OfficeStaff.objects.get(user=user)
+        except OfficeStaff.DoesNotExist:
+            return Response({"error": "No office staff profile found for this user."}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.method in ['PUT', 'PATCH']:
+            partial = request.method == 'PATCH'
+            serializer = self.get_serializer(staff, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response({"success": "Office staff profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(staff)
+        return Response(serializer.data, status=status.HTTP_200_OK)  
     
 #  ***************************   
 class DocumentTypeView(viewsets.ModelViewSet):
@@ -1340,71 +1303,4 @@ class FeeRecordView(viewsets.ModelViewSet):
 
      
     
-    # 🔹 Razorpay Initiate Payment      #commented as of 04June25 at 12:00 AM
-    # @action(detail=False, methods=['post'], url_path='initiate-payment')
-    # def initiate_payment(self, request):
-    #     serializer = RazorpayPaymentInitiateSerializer(data=request.data)
-    #     if serializer.is_valid():
-    #         data = serializer.validated_data
-
-    #         # Safely fetch the objects, return 404 if not found
-    #         student = get_object_or_404(Student, id=data['student_id'])
-    #         fee_structure = get_object_or_404(FeeStructure, id=data['fee_structure_id'])
-    #         fee_type = get_object_or_404(FeeType, id=data['fee_type_id'])
-
-    #         try:
-    #             # Convert amount to paise (minor currency unit)
-    #             amount_paise = int(data['amount'] * 100)
-    #             receipt_id = f"receipt_{student.id}_{fee_type.id}"
-
-    #             # Create Razorpay order
-    #             order = client.order.create({
-    #                 "amount": amount_paise,
-    #                 "currency": "INR",
-    #                 "receipt": receipt_id,
-    #                 "payment_capture": 1
-    #             })
-
-    #             # Save the fee record
-    #             Fee.objects.create(
-    #                 student=student,
-    #                 fee_structure=fee_structure,
-    #                 fee_type=fee_type,
-    #                 amount_paid=data['amount'],
-    #                 payment_mode='Online',
-    #                 razorpay_order_id=order['id']
-    #             )
-
-    #             return Response({
-    #                 "order_id": order['id'],
-    #                 "amount": data['amount'],
-    #                 "currency": "INR",
-    #                 "student_id": student.id,
-    #                 "razorpay_key": settings.RAZORPAY_API_KEY,
-    #                 "receipt": receipt_id
-    #             })
-
-    #         except Exception as e:
-    #             return Response({"error": f"Payment initiation failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    # # 🔹 Razorpay Verify Payment
-    # @action(detail=False, methods=['post'], url_path='verify-payment')
-    # def verify_payment(self, request):
-    #     data = request.data
-    #     try:
-    #         client.utility.verify_payment_signature({
-    #             'razorpay_order_id': data['razorpay_order_id'],
-    #             'razorpay_payment_id': data['razorpay_payment_id'],
-    #             'razorpay_signature': data['razorpay_signature']
-    #         })
-
-    #         fee = Fee.objects.get(razorpay_order_id=data['razorpay_order_id'])
-    #         fee.razorpay_payment_id = data['razorpay_payment_id']
-    #         fee.razorpay_signature = data['razorpay_signature']
-    #         fee.save()
-
-    #         return Response({"message": "Payment verified successfully."})
-    #     except razorpay.errors.SignatureVerificationError:
-    #         return Response({"message": "Payment verification failed."}, status=400)
+    
