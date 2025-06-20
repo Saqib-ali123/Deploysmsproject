@@ -374,47 +374,26 @@ class GuardianSerializer(serializers.ModelSerializer):
         return representation
 
 
+# ## As of 19June25 at 01:30 PM
+from rest_framework import serializers
+from .models import StudentYearLevel
 
-
-# # Fee Submission Serializer as of 07May25 at 12:34 PM
-
-# class FeeSubmissionSerializer(serializers.Serializer):
-#     account_no = serializers.IntegerField()
-#     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
-#     payment_method = serializers.ChoiceField(choices=['cash', 'online', 'cheque'])
-
-#     def validate_account_no(self, value):
-#         if not BankingDetail.objects.filter(account_no=value).exists():
-#             raise serializers.ValidationError("Invalid account number.")
-#         return value
-
-# # json for fee
-# # {
-# #   "account_no": 123456789012,
-# #   "amount": "2000.00",
-# #   "payment_method": "online"
-# # }
-
-    
-#     class Meta:
-#         model = Guardian
-#         exclude = ["user"]
-#     #     extra_kwargs = {
-#     # 'password': {'write_only': True},
-#         # }    
-        
-
-## As of 29May25 at 02:30 PM
 class StudentYearLevelSerializer(serializers.ModelSerializer):
-    student_name = serializers.SerializerMethodField()
+    student_name = serializers.SerializerMethodField(read_only=True)
     level_name = serializers.CharField(source='level.level_name', read_only=True)
     year_name = serializers.CharField(source='year.year_name', read_only=True)
+
+    class Meta:
+        model = StudentYearLevel
+        fields = ['id', 'student', 'level', 'year', 'student_name', 'level_name', 'year_name']
+        extra_kwargs = {
+            'student': {'write_only': True},
+            'level': {'write_only': True},
+            'year': {'write_only': True},
+        }
 
     def get_student_name(self, obj):
         first_name = obj.student.user.first_name or ''
         last_name = obj.student.user.last_name or ''
         return f"{first_name} {last_name}".strip()
 
-    class Meta:
-        model = StudentYearLevel
-        fields = ['id', 'student_name', 'level_name', 'year_name']

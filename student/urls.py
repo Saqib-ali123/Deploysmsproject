@@ -4,8 +4,8 @@ from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
 router.register(r'students', StudentView)
-router.register(r'gaurdian', GuardianProfileView)
-router.register(r'studentyearlevels', StudentYearLevelView)   # As of 29May25 at 02:30 PM
+router.register(r'guardian', GuardianProfileView)
+router.register(r'studentyearlevel', StudentYearLevelView)   # As of 29May25 at 02:30 PM
 
 
 urlpatterns = [

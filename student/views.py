@@ -189,18 +189,16 @@ class GuardianProfileView(viewsets.ModelViewSet):
             
 
 
+# As of 19June25 at 12:46 PM
+from django_filters.rest_framework import DjangoFilterBackend
 
-
-# As of 29May25 at 02:30 PM
-   
 class StudentYearLevelView(viewsets.ModelViewSet):
     queryset = StudentYearLevel.objects.all()
     serializer_class = StudentYearLevelSerializer
-    filter_backends = [filters.SearchFilter]
-    search_fields = [
-        'level__level_name'
-        # 'year__year_name',
-        # 'student__user__first_name',
-        # 'student__user__last_name',
-    ]            
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['level__id']  #  GET /student-year-levels/?level__id=2
+    search_fields = ['level__level_name']  #  GET /student-year-levels/?search=Nursery
+    
+    # combine search endpoint GET /student-year-levels/?level__id=2&search=Nursery
+
             

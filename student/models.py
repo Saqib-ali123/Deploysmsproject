@@ -74,12 +74,18 @@ class StudentGuardian(models.Model):
 
 
 class StudentYearLevel(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.DO_NOTHING)
+    # student = models.ForeignKey(Student, on_delete=models.DO_NOTHING)
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name='student_year_levels'  # Add this
+    )
     level = models.ForeignKey("director.YearLevel", on_delete=models.DO_NOTHING)
     year = models.ForeignKey("director.SchoolYear", on_delete=models.DO_NOTHING)
 
     def __str__(self):
         return f"{self.student} - {self.level} - {self.year}"
+        # return f"{self.student}"
 
     class Meta:
         verbose_name = "StudentYearLevel"
