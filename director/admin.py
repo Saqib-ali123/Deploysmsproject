@@ -21,5 +21,8 @@ admin.site.register(
         FeeType,
         YearLevelFee,
         FeeRecord,
+        File,
+        Document,
+        DocumentType
     ]
 )

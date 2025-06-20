@@ -1,8 +1,12 @@
+from argparse import Action
+from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 
-from director.models import Role
+
+from director.models import Address, Role, YearLevel
+
 from .models import GuardianType, Student, StudentYearLevel
 from .serializers import GuardianTypeSerializer, StudentSerializer, StudentYearLevelSerializer
 from rest_framework import status
@@ -14,6 +18,8 @@ from director.models import Role
 from rest_framework.filters import SearchFilter
 from rest_framework import viewsets
 from .pagination import CreatePagination
+from datetime import date  
+from rest_framework.decorators import action 
 
 
 @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -123,6 +129,12 @@ def GuardianTypeView(request, pk=None):
             )
 
 
+class StudentYearLevelView(ModelViewSet):
+    queryset = StudentYearLevel.objects.all()
+    serializer_class = StudentYearLevelSerializer
+    
+    
+    
 class StudentView(ModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
@@ -146,6 +158,43 @@ class StudentView(ModelViewSet):
                 self.perform_destroy(user_instance)
                 return Response({"success": "Student profile and related user deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
        
+
+
+    def calculate_age(self, birth_date):
+        today = date.today()
+        return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+
+    @action(detail=False, methods=['get'], url_path='by-year-level-id/(?P<year_level_id>[^/.]+)')
+    def by_year_level_id(self, request, year_level_id=None):    
+        student_year_levels = StudentYearLevel.objects.filter(level_id=year_level_id)
+        
+        if not student_year_levels.exists():
+            return Response({"message": "No students found for the specified year level"}, status=status.HTTP_404_NOT_FOUND)
+
+        students_data = []
+
+        for sy in student_year_levels:
+            student = sy.student
+            user = student.user
+            address_obj = Address.objects.filter(user=user).first()
+
+            full_address = (
+                f"{address_obj.house_no}, {address_obj.address_line}, {address_obj.city.name}, "
+                f"{address_obj.state.name}, {address_obj.country.name}, Area Code: {address_obj.area_code}"
+                if address_obj else "N/A"
+            )
+
+            students_data.append({
+                "student_name": f"{user.first_name} {user.last_name}",
+                "age": self.calculate_age(student.date_of_birth) if student.date_of_birth else "N/A",
+                "gender": student.gender,
+                "mobile_number": getattr(user, 'phone', "N/A"),
+                "address": full_address,
+                "year_level": sy.level.level_name,
+                "school_year": sy.year.year_name
+            })
+
+        return Response(students_data, status=status.HTTP_200_OK)
 
 
 

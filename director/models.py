@@ -2,9 +2,10 @@ import random
 import string
 import uuid
 from django.db import models
-from authentication.models import *
-from student.models import *
-from .utils import Document_folder  
+from authentication.models import User
+from student.models import Student, Guardian,StudentYearLevel
+from .utils import Document_folder 
+from teacher.models import Teacher 
 
 
 
@@ -62,6 +63,12 @@ class City(models.Model):
 class Address(models.Model):
     user = models.ForeignKey("authentication.User", on_delete=models.DO_NOTHING)
     house_no = models.IntegerField()
+    habitation = models.CharField(max_length=100)
+    word_no = models.IntegerField()
+    zone_no = models.IntegerField()
+    block = models.CharField(max_length=100)
+    district = models.CharField(max_length=100)
+    division = models.CharField(max_length=100)
     area_code = models.IntegerField()
     country = models.ForeignKey(Country, on_delete=models.DO_NOTHING)
     state = models.ForeignKey(State, on_delete=models.DO_NOTHING)
@@ -93,7 +100,7 @@ class Director(models.Model):
 
 class BankingDetail(models.Model):
     account_no = models.BigIntegerField(primary_key=True, unique=True)
-    ifsc_code = models.BigIntegerField()
+    ifsc_code = models.CharField(max_length=225)
     holder_name = models.CharField(max_length=255)
     user = models.OneToOneField("authentication.User", on_delete=models.DO_NOTHING)
 
@@ -231,12 +238,94 @@ class ClassPeriod(models.Model):
         db_table = "ClassPeriod"
 
 
+
+### Admission shifted below for fee implementation previously it is here
+
+# As of 12May25 at 11:15 AM
+# class FeeType(models.Model):      #commented as of 04June25 at 12:00 AM
+#     name = models.CharField(max_length=100)
+#     description = models.TextField(blank=True, null=True)
+
+#     def __str__(self):
+#         return self.name
+    
+#     class Meta:
+#         verbose_name = "FeeType"
+#         verbose_name_plural = "FeeType"
+#         db_table = "FeeType"
+ 
+        
+ # As of 12May25 at 11:15 AM       
+# class FeeStructure(models.Model):         #commented as of 04June25 at 12:00 AM
+#     year_level = models.ForeignKey(YearLevel, on_delete=models.CASCADE)
+#     term = models.ForeignKey(Term, on_delete=models.CASCADE)
+#     fee_type = models.ForeignKey(FeeType, on_delete=models.CASCADE)
+#     total_fee = models.DecimalField(max_digits=10, decimal_places=2)
+
+
+
+class Admission(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.DO_NOTHING)
+    admission_date = models.DateField(auto_now_add=True)
+    previous_school_name = models.CharField(max_length=200)
+    previous_standard_studied = models.CharField(max_length=200)
+    tc_letter = models.CharField(max_length=200)
+    guardian = models.ForeignKey(Guardian, on_delete=models.DO_NOTHING)
+    year_level = models.ForeignKey('YearLevel', on_delete=models.DO_NOTHING)
+    school_year = models.ForeignKey(SchoolYear, on_delete=models.DO_NOTHING)
+    emergency_contact_n0 = models.CharField(max_length=100)
+    entire_road_distance_from_home_to_school = models.CharField(max_length=100)
+    obtain_marks = models.FloatField()
+    total_marks = models.FloatField()
+    previous_percentage = models.FloatField(blank=True, null=True)  # Allow null/blank since auto-calculated
+
+    def save(self, *args, **kwargs):
+        if self.total_marks > 0:
+            self.previous_percentage = (self.obtain_marks / self.total_marks) * 100
+        else:
+            self.previous_percentage = 0  
+        super().save(*args, **kwargs)
+
+#     def __str__(self):
+#         return f"{self.year_level} - {self.term} - {self.fee_type.name}"
+
+#     class Meta:
+#         db_table = "Admission"
+
+# # As of 08May25 at 11:38 AM
+# class Fee(models.Model):              #commented as of 04June25 at 12:00 AM
+#     student = models.ForeignKey(Student, on_delete=models.CASCADE)
+#     fee_structure = models.ForeignKey(FeeStructure, on_delete=models.SET_NULL, null=True, blank=True)
+#     fee_type = models.ForeignKey(FeeType, on_delete=models.CASCADE)
+#     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+#     payment_date = models.DateField(auto_now_add=True)
+#     payment_mode = models.CharField(
+#         max_length=20,
+#         choices=[('Cash', 'Cash'), ('Online', 'Online'), ('Cheque', 'Cheque')]
+#     )
+#     remarks = models.TextField(blank=True, null=True)
+#     receipt_number = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+#     razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
+#     razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
+#     razorpay_signature = models.CharField(max_length=200, blank=True, null=True)
+
+
+#     def __str__(self):
+#         return f"{self.student.user.first_name} - {self.fee_type.name} - {self.amount_paid} - {self.payment_date}"
+
+#     class Meta:
+#         verbose_name = "Fee"
+#         verbose_name_plural = "Fee"
+#         db_table = "Fee"
+
+
 # As of 04June2025 at 12:15 AM
 # Re-implementation of Fee module based on the provided fee card
 
 from django.db import models
 import random
 import string
+
 
 class FeeType(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -255,7 +344,7 @@ class YearLevel(models.Model):
     level_order = models.IntegerField()
 
     def __str__(self):
-        return f"{self.level_order} {self.level_name}"
+        return f" {self.level_name}"
 
     class Meta:
         verbose_name = "Year Level"
@@ -276,7 +365,7 @@ class YearLevelFee(models.Model):
         db_table = "YearLevelFee"
 
 class FeeRecord(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    student = models.ForeignKey("student.Student", on_delete=models.CASCADE)
     MONTH_CHOICES = [
         ("July", "July"), ("August", "August"), ("September", "September"),
         ("October", "October"), ("November", "November"), ("December", "December"),
@@ -327,12 +416,12 @@ class FeeRecord(models.Model):
 
 class Admission(models.Model):
     id = models.AutoField(primary_key=True)
-    student = models.ForeignKey(Student,on_delete=models.DO_NOTHING,)
+    student = models.ForeignKey("student.Student",on_delete=models.DO_NOTHING,)
     admission_date = models.DateField()
     previous_school_name = models.CharField(max_length=200)
     previous_standard_studied = models.CharField(max_length=200)
     tc_letter = models.CharField(max_length=200)
-    guardian = models.ForeignKey(Guardian,on_delete=models.DO_NOTHING)
+    guardian = models.ForeignKey("student.Guardian",on_delete=models.DO_NOTHING)
     year_level = models.ForeignKey(YearLevel,on_delete=models.DO_NOTHING)
     school_year = models.ForeignKey(SchoolYear,on_delete=models.DO_NOTHING)
     # total_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))  #Added as of 08May25
@@ -349,13 +438,13 @@ class Admission(models.Model):
 
 
 class OfficeStaff(models.Model):
-    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True)
+    user = models.OneToOneField("authentication.User", on_delete=models.SET_NULL, null=True)
     phone_no = models.CharField(max_length=20)
     gender = models.CharField(max_length=20)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     date_joined = models.DateField(auto_now_add=True)
-    student = models.ManyToManyField(Student, blank=True, related_name="managed_by_staff")
-    teacher = models.ManyToManyField(Teacher, blank=True, related_name="managed_by_staff")
+    student = models.ManyToManyField("student.Student", blank=True, related_name="managed_by_staff")
+    teacher = models.ManyToManyField("teacher.Teacher", blank=True, related_name="managed_by_staff")
     admissions = models.ManyToManyField(Admission, blank=True, related_name="handled_by_staff")
 
     def __str__(self):
@@ -370,6 +459,7 @@ class OfficeStaff(models.Model):
 
 class DocumentType(models.Model):
     name = models.CharField(max_length=100)
+    
 
     def __str__(self):
         return self.name
@@ -378,23 +468,34 @@ class DocumentType(models.Model):
         db_table = "DocumentType"
         
         
+        
 
 class Document(models.Model):
-    document_type = models.ForeignKey(DocumentType, on_delete=models.CASCADE)
-    file = models.FileField(upload_to= Document_folder)
-    # file = models.FileField(upload_to='Document_folder/')
+    document_types = models.ManyToManyField(DocumentType)
+    identities = models.CharField(max_length=1000, blank=True, null=True)
     
-    student = models.ForeignKey(Student, on_delete=models.SET_NULL, null=True, blank=True)
+    student = models.ForeignKey("student.Student", on_delete=models.SET_NULL, null=True, blank=True)
     teacher = models.ForeignKey("teacher.Teacher", on_delete=models.SET_NULL, null=True, blank=True)
-    guardian = models.ForeignKey(Guardian, on_delete=models.SET_NULL, null=True, blank=True)
+    guardian = models.ForeignKey("student.Guardian", on_delete=models.SET_NULL, null=True, blank=True)
     office_staff = models.ForeignKey(OfficeStaff, on_delete=models.SET_NULL, null=True, blank=True)
 
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         entity = self.student or self.teacher or self.guardian or self.office_staff
-        return f"{self.document_type.name} - {entity}"
+        return f"{self.document_types.name} - {entity}"
 
     class Meta:
         db_table = "Document"
         
+class File(models.Model):
+    file = models.FileField(upload_to=Document_folder) 
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='files', null=True)
+ 
+    
+
+    def __str__(self):
+        return f"File {self.id} - {self.file.name}"
+
+    class Meta:
+        db_table = "File"

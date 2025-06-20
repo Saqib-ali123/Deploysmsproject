@@ -1,6 +1,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-
+from django.db.models import Count
+from collections import OrderedDict
 from .serializers import *
 from rest_framework import status
 from rest_framework import viewsets
@@ -11,9 +12,18 @@ from rest_framework .views import APIView       # As of 07May25 at 12:30 PM
 from rest_framework.filters import SearchFilter
 from django.db.models import Sum
 from rest_framework.decorators import action
+from django.db.models.functions import Coalesce
+from django.db.models import Sum, DecimalField
+# views.py
+
+from django.db.models import Count, F, ExpressionWrapper, IntegerField ,Func , Value
+
 import razorpay
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from datetime import datetime
+client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
+
 import random
 import string
 from django.db.models import Sum, F, Value, DecimalField
@@ -23,7 +33,8 @@ from django.db.models import Q, Sum, Value, FloatField
 
 
 # client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
-client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+# client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
 ### Function to generate auto receipt no. called it inside initiate payment
 def generate_receipt_number():
@@ -31,6 +42,374 @@ def generate_receipt_number():
             code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
             if not FeeRecord.objects.filter(receipt_number=code).exists():
                 return code
+
+
+#   ---------------------------------------------  Director Dashboard view   ----------------------------------------------------------
+
+
+@api_view(["GET"])
+def Director_Dashboard_Summary(request):
+  
+    current_year = datetime.now().year
+
+    summary = {
+        "new_admissions": Admission.objects.filter(admission_date__year=current_year).count(),
+        "students": Student.objects.count(),
+        "teachers": Teacher.objects.count()
+    }
+
+    student_total = summary["students"]
+    teacher_total = summary["teachers"]
+
+    student_male = Student.objects.filter(gender__iexact="Male").count()
+    student_female = Student.objects.filter(gender__iexact="Female").count()
+
+    teacher_male = Teacher.objects.filter(gender__iexact="Male").count()
+    teacher_female = Teacher.objects.filter(gender__iexact="Female").count()
+
+    def get_percentage(count, total):
+        return round((count / total) * 100, 2) if total else 0
+
+    gender_distribution = {
+        "students": {
+            "count": {
+                "male": student_male,
+                "female": student_female
+            },
+            "percentage": {
+                "male": get_percentage(student_male, student_total),
+                "female": get_percentage(student_female, student_total)
+            },
+          
+        },
+        "teachers": {
+            "count": {
+                "male": teacher_male,
+                "female": teacher_female
+            },
+            "percentage": {
+                "male": get_percentage(teacher_male, teacher_total),
+                "female": get_percentage(teacher_female, teacher_total)
+            },
+            
+        }
+    }
+
+    class_data = StudentYearLevel.objects.values("level__level_name").annotate(total=Count("student"))
+    class_strength = {entry["level__level_name"]: entry["total"] for entry in class_data}
+
+
+    school_years = SchoolYear.objects.order_by("start_date")
+    students_per_year = OrderedDict()
+
+    for year in school_years:
+        year_range = f"{year.start_date.year}-{year.end_date.year}"
+        count = StudentYearLevel.objects.filter(year=year).count()
+        students_per_year[year_range] = count
+
+    return Response({
+      
+        "summary": summary,
+        "gender_distribution": gender_distribution,
+        "class_strength": class_strength,
+        "students_per_year": students_per_year
+    })
+
+
+# ---------------------------------------------------------   Teacher Dashboard View  ----------------------------------------------------------
+ 
+
+@api_view(["GET"])
+def teacher_dashboard(request, id):
+    try:
+        user = User.objects.get(id=id)
+        teacher = user.teacher
+    except User.DoesNotExist:
+        return Response({"error": "User not found"}, status=404)
+    except Teacher.DoesNotExist:
+        return Response({"error": "This user is not a teacher"}, status=400)
+
+    periods = ClassPeriod.objects.filter(teacher=teacher)
+    class_data = []
+
+    for period in periods:
+        students = Student.objects.filter(classes=period).distinct()
+
+        # Fetch YearLevel names for these students
+        year_levels = YearLevel.objects.filter(
+            studentyearlevel__student__in=students
+        ).distinct().values_list('level_name', flat=True)
+
+        class_data.append({
+            "class_period": period.name,
+            "subject": period.subject.subject_name,
+            "classroom": period.classroom.room_name,
+            "student_count": students.count(),
+             "level_name": ", ".join(year_levels) if year_levels else "N/A"
+        })
+
+    return Response({
+        "teacher": f"{teacher.user.first_name} {teacher.user.last_name}",
+        "total_classes": periods.count(),
+        "class_details": class_data
+    })
+
+#   -------------------------------------------  Guardian Dashboard  ----------------------------------------------------------
+
+
+@api_view(["GET"])
+def guardian_dashboard(request,id=None):
+    if not id:
+        return Response({"error": "Guardian ID is required"}, status=400)
+
+    try:
+        guardian = Guardian.objects.get(id=id)
+    except Guardian.DoesNotExist:
+        return Response({"error": "Guardian not found"}, status=404)
+
+    student_links = StudentGuardian.objects.filter(guardian=guardian)
+    children_data = []
+
+    for link in student_links:
+        student = link.student
+
+        # Latest class info (YearLevel + SchoolYear)
+        year_level_info = StudentYearLevel.objects.filter(student=student).last()
+
+        children_data.append({
+            "student_name": f"{student.user.first_name} {student.user.last_name}",
+            "class": f"{year_level_info.level.level_name} ({year_level_info.year.year_name})" if year_level_info else "Not Assigned"
+        })
+
+    return Response({
+        "guardian": f"{guardian.user.first_name} {guardian.user.last_name}",
+        "total_children": student_links.count(),
+        "children": children_data
+    })
+
+# --------------------------------------------------------- office Staff Dashboard View  ----------------------------------------------------------
+
+
+@api_view(["GET"])
+def office_staff_dashboard(request):
+    
+    staff = OfficeStaff.objects.first()
+    if not staff or not staff.user:
+        return Response({"error": "No office staff found"}, status=404)
+
+    
+    current_date = datetime.now().date()
+    current_year = (
+        SchoolYear.objects
+        .filter(start_date__lte=current_date, end_date__gte=current_date)
+        .order_by('-start_date')
+        .first()
+    )
+
+    if not current_year:
+        return Response({"error": "Current academic year not found"}, status=404)
+
+    new_admissions = Admission.objects.filter(
+       admission_date__gte=current_year.start_date,
+       admission_date__lte=current_year.end_date
+   ).count()
+
+    admission_stats = Admission.objects.values("admission_date__year").annotate(
+       total=Count("id")
+   ).order_by("admission_date__year")
+
+    trend = OrderedDict()
+    for stat in admission_stats:
+        year = stat["admission_date__year"]
+        trend[str(year)] = stat["total"]
+
+    return Response({
+        "staff_name": f"{staff.user.first_name} {staff.user.last_name}",
+        "current_academic_year": f"{current_year.start_date.year}-{current_year.end_date.year}",
+        "new_admissions_this_year": new_admissions,
+        "admissions_per_year": trend
+    })
+
+
+
+
+
+# --------------------------------------------------------- student dashboard View  ----------------------------------------------------------
+
+
+
+
+
+# @api_view(["GET"])
+# def student_dashboard(request, id):
+#     try:
+#         student = Student.objects.get(id=id)
+#     except Student.DoesNotExist:
+#         return Response({"error": "Student not found"}, status=404)
+
+#     # Get the latest admission if multiple exist
+#     admission = Admission.objects.filter(student=student).order_by('-admission_date').first()
+#     if not admission:
+#         return Response({"error": "Admission record not found"}, status=404)
+
+#     # Total Fee from YearLevelFee
+#     year_level_fees = YearLevelFee.objects.filter(year_level=admission.year_level)
+#     total_fee = year_level_fees.aggregate(total=Sum('amount'))['total'] or 0
+
+#     # Paid Amount from FeeRecord
+#     paid_amount = FeeRecord.objects.filter(student=student).aggregate(paid=Sum('paid_amount'))['paid'] or 0
+
+#     due_amount = total_fee - paid_amount
+
+#     return Response({
+#         "student_name": student.user.get_full_name(),
+#         "year_level": str(admission.year_level),
+#         "total_fee": float(total_fee),
+#         "paid_fee": float(paid_amount),
+#         "due_fee": float(due_amount)
+#     })
+
+
+# -------------------------------------------------  Fees summary view  ----------------------------------------------------------
+
+
+
+
+
+
+
+@api_view(["GET"])
+def director_fee_summary(request):
+    month = request.GET.get("month")  
+    year = request.GET.get("year")    
+
+    # School-level summary
+    total_students = Student.objects.count()
+
+    fee_qs = FeeRecord.objects.all()
+
+    if month and year:
+        fee_qs = fee_qs.filter(month=month, payment_date__year=year)
+    elif year:
+        fee_qs = fee_qs.filter(payment_date__year=year)
+
+    total_fee = fee_qs.aggregate(
+        total=Coalesce(Sum('total_amount', output_field=DecimalField()), Decimal("0.00"))
+    )['total']
+
+    total_paid = fee_qs.aggregate(
+        paid=Coalesce(Sum('paid_amount', output_field=DecimalField()), Decimal("0.00"))
+    )['paid']
+
+    total_due = fee_qs.aggregate(
+        due=Coalesce(Sum('due_amount', output_field=DecimalField()), Decimal("0.00"))
+    )['due']
+
+    # Class-wise summary
+    class_data = []
+    all_class_periods = ClassPeriod.objects.select_related('classroom__room_type').all()
+
+    for period in all_class_periods:
+        students_in_class = Student.objects.filter(classes=period).distinct()
+        student_ids = students_in_class.values_list('id', flat=True)
+
+        class_fee_qs = FeeRecord.objects.filter(student_id__in=student_ids)
+        if month and year:
+            class_fee_qs = class_fee_qs.filter(month=month, payment_date__year=year)
+
+        class_total_fee = class_fee_qs.aggregate(
+            total=Coalesce(Sum('total_amount', output_field=DecimalField()), Decimal("0.00"))
+        )['total']
+
+        class_total_paid = class_fee_qs.aggregate(
+            paid=Coalesce(Sum('paid_amount', output_field=DecimalField()), Decimal("0.00"))
+        )['paid']
+
+        class_total_due = class_fee_qs.aggregate(
+            due=Coalesce(Sum('due_amount', output_field=DecimalField()), Decimal("0.00"))
+        )['due']
+
+        class_data.append({
+            "class_name": f"{period.classroom.room_type} - {period.classroom.room_name}",
+            "total_students": students_in_class.count(),
+            "total_fee": class_total_fee,
+            "paid_fee": class_total_paid,
+            "due_fee": class_total_due
+        })
+
+    data = {
+        "school_summary": {
+            "total_students": total_students,
+            "total_fee": total_fee,
+            "paid_fee": total_paid,
+            "due_fee": total_due,
+        },
+        "class_summary": class_data
+    }
+
+    return Response(data)
+
+
+# -------------------------------------------------  Guardian income distribution view  ----------------------------------------------------------
+
+
+
+
+
+@api_view(["GET"])
+def guardian_income_distribution(request):
+    bucket_size = int(request.GET.get("bucket_size", 10000)) 
+    max_income = int(request.GET.get("max_income", 200000))   
+
+    income_bucket_expr = ExpressionWrapper(
+        Func(
+            F('annual_income') / Value(bucket_size),
+            function='FLOOR'
+        ),
+        output_field=IntegerField()
+    )
+
+    data = (
+        Guardian.objects
+        .filter(annual_income__lt=max_income)
+        .annotate(income_bucket=income_bucket_expr)
+        .values('income_bucket')
+        .annotate(count=Count('id'))
+        .order_by('income_bucket')
+    )
+
+    result = []
+    for row in data:
+        start = row['income_bucket'] * bucket_size
+        end = start + bucket_size
+        result.append({
+            "range": f"₹{start} - ₹{end}",
+            "count": row["count"]
+        })
+
+    return Response(result)
+
+
+# ------------------------------------------------------------------------  livelihood  distribution view  ----------------------------------------------------------
+
+
+@api_view(["GET"])
+def livelihood_distribution(request):
+    govt_count = Guardian.objects.filter(means_of_livelihood='Govt').count()
+    non_govt_count = Guardian.objects.filter(means_of_livelihood='Non-Govt').count()
+
+    return Response([
+        {"category": "Government", "count": govt_count},
+        {"category": "Non-Government", "count": non_govt_count}
+    ])
+
+
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
 
 
 
@@ -565,6 +944,11 @@ def RoleView(request, pk=None):
 class CountryView(viewsets.ModelViewSet):
     queryset = Country.objects.all()
     serializer_class = CountrySerializer
+    
+# ==============Subject================
+class subjectView(viewsets.ModelViewSet):
+    queryset = Subject.objects.all()
+    serializer_class = subjectSerializer
 
 
 # ===============State===================
@@ -731,9 +1115,106 @@ class DocumentTypeView(viewsets.ModelViewSet):
     queryset = DocumentType.objects.all()
     serializer_class = DocumentTypeSerializer 
     
+class FileView(viewsets.ModelViewSet):
+    queryset = File.objects.all()
+    serializer_class = FileSerializer 
+
+
+# from rest_framework.parsers import MultiPartParser, FormParser
+
+# class DocumentView(viewsets.ModelViewSet):
+#     queryset = Document.objects.all()
+#     serializer_class = DocumentSerializer
+#     parser_classes = (MultiPartParser, FormParser)
+
+#     def create(self, request, *args, **kwargs):
+#         print("Request FILES:", request.FILES)
+#         print("Request DATA:", request.data)
+
+#         files = request.FILES.getlist('uploaded_files')
+#         document_types = request.data.getlist('document_types')
+
+#         if not files:
+#             return Response({"error": "No files uploaded"}, status=status.HTTP_400_BAD_REQUEST)
+#         if not document_types:
+#             return Response({"error": "At least one document type must be selected."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         data = request.data.copy()
+#         data.setlist('uploaded_files', files)
+#         data.setlist('document_types', document_types)
+
+#         serializer = self.get_serializer(data=data)
+#         serializer.is_valid(raise_exception=True)
+#         self.perform_create(serializer)
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
+import json  # 🔸 This goes at the top of the file
+
 class DocumentView(viewsets.ModelViewSet):
     queryset = Document.objects.all()
-    serializer_class = DocumentSerializer 
+    serializer_class = DocumentSerializer
+    parser_classes = (MultiPartParser, FormParser)
+
+    def create(self, request, *args, **kwargs):
+        files = request.FILES.getlist('uploaded_files')
+        document_types = request.data.getlist('document_types')
+        identities = request.data.getlist('identities')
+
+        if not files:
+            return Response({"error": "No files uploaded"}, status=status.HTTP_400_BAD_REQUEST)
+        if not document_types:
+            return Response({"error": "At least one document type must be selected."}, status=status.HTTP_400_BAD_REQUEST)
+        if not identities:
+            return Response({"error": "Identities are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(document_types) != len(identities):
+            return Response({"error": "Identities count must match document types count."}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = request.data.copy()
+        data.setlist('uploaded_files', files)
+        data.setlist('document_types', document_types)
+        data.setlist('identities', identities)
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+
+
+
+
+    # parser_classes = [MultiPartParser, FormParser]  # Important for file uploads
+
+    # def create(self, request, *args, **kwargs):
+    #     document_types = request.data.getlist('document_types')
+    #     student = request.data.get('student')
+    #     teacher = request.data.get('teacher')
+    #     guardian = request.data.get('guardian')
+    #     office_staff = request.data.get('office_staff')
+    #     uploaded_files = request.FILES.getlist('files')
+
+    #     if not uploaded_files:
+    #         return Response({"error": "No files uploaded"}, status=status.HTTP_400_BAD_REQUEST)
+
+    #     file_objs = [File.objects.create(file=f) for f in uploaded_files]
+
+    #     document = Document.objects.create(
+    #         student_id=student,
+    #         teacher_id=teacher,
+    #         guardian_id=guardian,
+    #         office_staff_id=office_staff
+    #     )
+    #     document.files.set(file_objs)
+    #     document.document_types.set(document_types)
+    #     document.save()
+
+    #     serializer = self.get_serializer(document)
+    #     return Response(serializer.data, status=status.HTTP_201_CREATED)
     
 # **********************************    
 
@@ -1008,7 +1489,7 @@ class FeeRecordView(viewsets.ModelViewSet):
             })
 
         return Response(result, status=status.HTTP_200_OK)
-    
+
     # corrected amount issue as of 19June25 at 02:50 PM
     # https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/monthly-summary/?year_level=2&month=June
     @action(detail=False, methods=["get"], url_path="monthly-summary")
