@@ -1,13 +1,17 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+__migrations__/
+__env__/
 *.py[cod]
 *$py.class
 
 # C extensions
 *.so
 
+
 # Distribution / packaging
 .Python
+.env/
 build/
 develop-eggs/
 dist/
@@ -63,6 +67,7 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+db.mysql
 
 # Flask stuff:
 instance/

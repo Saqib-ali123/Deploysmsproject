@@ -134,6 +134,7 @@ class ChangePasswordSerializer(serializers.Serializer):
 class LoginSerializers(serializers.Serializer):
     email=serializers.EmailField()
     password=serializers.CharField(max_length=250)
+
     # role=serializers.CharField(max_length=30)
     
 

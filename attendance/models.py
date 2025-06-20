@@ -3,15 +3,16 @@ from director.models import *
 from teacher.models import *
 
 
-class AttendanceSession(models.Model):
-    date = models.DateField()
-    year_level=models.ForeignKey(YearLevel,on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = ('date', 'year_level')
+class Holiday(models.Model):
+    title = models.CharField(max_length=255)
+    start_date = models.DateField()
+    end_date = models.DateField()
 
     def __str__(self):
-        return f"{self.date} - {self.year_level}"
+        if self.start_date == self.end_date:
+            return f"{self.title} ({self.start_date})"
+        return f"{self.title} ({self.start_date} to {self.end_date})"
+
     
     
 class StudentAttendance(models.Model):
@@ -19,15 +20,15 @@ class StudentAttendance(models.Model):
         ('P', 'Present'),
         ('A', 'Absent'),
         ('L', 'Leave'),
+        ('H','Holiday')
     ]
 
-    session_id = models.ForeignKey(AttendanceSession, on_delete=models.CASCADE, related_name="attendances")
-    student = models.ForeignKey(StudentYearLevel, on_delete=models.CASCADE)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
     marked_at = models.DateField()
     teacher=models.ForeignKey(Teacher,on_delete=models.CASCADE)
+    year_level=models.ForeignKey(YearLevel,on_delete=models.CASCADE)
 
-    class Meta:
-        unique_together = ('session_id', 'student')
+
     def __str__(self):
         return f"{self.student} -{self.status}"
