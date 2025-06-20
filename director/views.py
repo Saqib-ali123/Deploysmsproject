@@ -958,6 +958,7 @@ class FeeRecordView(viewsets.ModelViewSet):
     
     
     # corrected amount issue as of 19June25 at 02:50 PM
+    # https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/student-fee-summary/?year_level=5
     @action(detail=False, methods=["get"], url_path="student-fee-summary")
     def student_fee_summary(self, request):
         year_level = request.query_params.get("year_level")
@@ -1009,6 +1010,7 @@ class FeeRecordView(viewsets.ModelViewSet):
         return Response(result, status=status.HTTP_200_OK)
     
     # corrected amount issue as of 19June25 at 02:50 PM
+    # https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/monthly-summary/?year_level=2&month=June
     @action(detail=False, methods=["get"], url_path="monthly-summary")
     def monthly_summary(self, request):
         month = request.query_params.get("month", "").strip()
