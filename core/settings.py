@@ -57,7 +57,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
-    # 'django_filters',
+    'django_filters',
 ]
 
 MIDDLEWARE = [
@@ -120,13 +120,14 @@ DATABASES = {
 
 
 
+
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    # 'DEFAULT_FILTER_BACKENDS': [
-    #     'django_filters.rest_framework.DjangoFilterBackend'
-    # ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend'
+    ],
 }
 
 
@@ -179,6 +180,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
+    
 }
 
 
@@ -260,12 +262,12 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Razorpay credentials (get them from https://dashboard.razorpay.com/app/keys)
 
-# RAZORPAY_API_KEY = 'rzp_test_71sjXJLVYiRFI8'
-# RAZORPAY_API_KEY_SECRET = 'HTh4tMZNOWgoGAtYhP8yMVse'
-# RAZORPAY_WEBHOOK_SECRET = 'KLEcK25CqeD96@k'
-# RAZORPAY_KEY_ID = 'rzp_test_71sjXJLVYiRFI8'
-# RAZORPAY_KEY_SECRET = 'HTh4tMZNOWgoGAtYhP8yMVse'
-# RAZORPAY_WEBHOOK_SECRET = 'KLEcK25CqeD96@k'
+RAZORPAY_API_KEY = 'rzp_test_71sjXJLVYiRFI8'
+RAZORPAY_API_KEY_SECRET = 'HTh4tMZNOWgoGAtYhP8yMVse'
+RAZORPAY_WEBHOOK_SECRET = 'KLEcK25CqeD96@k'
+RAZORPAY_KEY_ID = 'rzp_test_71sjXJLVYiRFI8'
+RAZORPAY_KEY_SECRET = 'HTh4tMZNOWgoGAtYhP8yMVse'
+RAZORPAY_WEBHOOK_SECRET = 'KLEcK25CqeD96@k'
 
 # Added as of 10June25 at 12:02 PM
 RAZORPAY_KEY_ID = "rzp_test_4h2aRSAPbYw3f8"

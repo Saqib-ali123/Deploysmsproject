@@ -10,6 +10,14 @@ from rest_framework .views import APIView       # As of 07May25 at 12:30 PM
 from rest_framework.filters import SearchFilter
 from django.db.models import Sum
 from rest_framework.decorators import action
+
+from django.db.models.functions import Coalesce
+from django.db.models import Sum, DecimalField
+# views.py
+
+from django.db.models import Count, F, ExpressionWrapper, IntegerField ,Func , Value
+
+
 import razorpay
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -25,8 +33,15 @@ client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_S
 
 import random
 import string
+from django.db.models import Sum, F, Value, DecimalField
+from django.db.models.functions import Coalesce
+from django.db.models import Q
+from django.db.models import Q, Sum, Value, FloatField
 
 
+
+
+# client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
 ### Function to generate auto receipt no. called it inside initiate payment
 def generate_receipt_number():
@@ -41,9 +56,7 @@ def generate_receipt_number():
 
 @api_view(["GET"])
 def Director_Dashboard_Summary(request):
-   
 
-    # Continue if director exists
     current_year = datetime.now().year
 
     summary = {
@@ -74,7 +87,7 @@ def Director_Dashboard_Summary(request):
                 "male": get_percentage(student_male, student_total),
                 "female": get_percentage(student_female, student_total)
             },
-            # "total": student_total
+          
         },
         "teachers": {
             "count": {
@@ -85,7 +98,7 @@ def Director_Dashboard_Summary(request):
                 "male": get_percentage(teacher_male, teacher_total),
                 "female": get_percentage(teacher_female, teacher_total)
             },
-            # "total": teacher_total
+            
         }
     }
 
@@ -102,7 +115,7 @@ def Director_Dashboard_Summary(request):
         students_per_year[year_range] = count
 
     return Response({
-        # "director_id": id,
+      
         "summary": summary,
         "gender_distribution": gender_distribution,
         "class_strength": class_strength,
@@ -152,9 +165,14 @@ def teacher_dashboard(request, id):
 
 
 @api_view(["GET"])
-def guardian_dashboard(request,id):
-    # Static Guardian (replace with auth user in production)
-    guardian = Guardian.objects.get(user_id=id)
+def guardian_dashboard(request,id=None):
+    if not id:
+        return Response({"error": "Guardian ID is required"}, status=400)
+
+    try:
+        guardian = Guardian.objects.get(id=id)
+    except Guardian.DoesNotExist:
+        return Response({"error": "Guardian not found"}, status=404)
 
     student_links = StudentGuardian.objects.filter(guardian=guardian)
     children_data = []
@@ -178,52 +196,88 @@ def guardian_dashboard(request,id):
 
 # --------------------------------------------------------- office Staff Dashboard View  ----------------------------------------------------------
 
-@api_view(["GET"])
-def office_staff_dashboard(request, id=None):
-  
-    try:
-        user = User.objects.get(id=id)
-    except User.DoesNotExist:
-        return Response({"error": "User not found"}, status=404)
 
-    #  Get current date and academic year
+@api_view(["GET"])
+def office_staff_dashboard(request):
+    
+    staff = OfficeStaff.objects.first()
+    if not staff or not staff.user:
+        return Response({"error": "No office staff found"}, status=404)
+
+    
     current_date = datetime.now().date()
-    try:
-        current_school_year = SchoolYear.objects.get(
-            start_date__lte=current_date,
-            end_date__gte=current_date
-        )
-    except SchoolYear.DoesNotExist:
+    current_year = (
+        SchoolYear.objects
+        .filter(start_date__lte=current_date, end_date__gte=current_date)
+        .order_by('-start_date')
+        .first()
+    )
+
+    if not current_year:
         return Response({"error": "Current academic year not found"}, status=404)
 
-    # Count new admissions in current academic year
-    new_admissions_count = Admission.objects.filter(
-        admission_date__gte=current_school_year.start_date,
-        admission_date__lte=current_school_year.end_date
-    ).count()
+    new_admissions = Admission.objects.filter(
+       admission_date__gte=current_year.start_date,
+       admission_date__lte=current_year.end_date
+   ).count()
 
-    # Admissions per year (trend)
-    admissions_by_year = Admission.objects.values("admission_date__year").annotate(
-        total=Count("id")
-    ).order_by("admission_date__year")
+    admission_stats = Admission.objects.values("admission_date__year").annotate(
+       total=Count("id")
+   ).order_by("admission_date__year")
 
-    admissions_trend = {
-        str(entry["admission_date__year"]): entry["total"]
-        for entry in admissions_by_year
-    }
-
+    trend = OrderedDict()
+    for stat in admission_stats:
+        year = stat["admission_date__year"]
+        trend[str(year)] = stat["total"]
 
     return Response({
-        "staff": f"{user.first_name} {user.last_name}",
-        "current_academic_year": f"{current_school_year.start_date.year}-{current_school_year.end_date.year}",
-        "new_admissions_this_year": new_admissions_count,
-        "admissions_per_year": admissions_trend
+        "staff_name": f"{staff.user.first_name} {staff.user.last_name}",
+        "current_academic_year": f"{current_year.start_date.year}-{current_year.end_date.year}",
+        "new_admissions_this_year": new_admissions,
+        "admissions_per_year": trend
     })
 
 
 
 
 
+# --------------------------------------------------------- student dashboard View  ----------------------------------------------------------
+
+
+
+
+
+# @api_view(["GET"])
+# def student_dashboard(request, id):
+#     try:
+#         student = Student.objects.get(id=id)
+#     except Student.DoesNotExist:
+#         return Response({"error": "Student not found"}, status=404)
+
+#     # Get the latest admission if multiple exist
+#     admission = Admission.objects.filter(student=student).order_by('-admission_date').first()
+#     if not admission:
+#         return Response({"error": "Admission record not found"}, status=404)
+
+#     # Total Fee from YearLevelFee
+#     year_level_fees = YearLevelFee.objects.filter(year_level=admission.year_level)
+#     total_fee = year_level_fees.aggregate(total=Sum('amount'))['total'] or 0
+
+#     # Paid Amount from FeeRecord
+#     paid_amount = FeeRecord.objects.filter(student=student).aggregate(paid=Sum('paid_amount'))['paid'] or 0
+
+#     due_amount = total_fee - paid_amount
+
+#     return Response({
+#         "student_name": student.user.get_full_name(),
+#         "year_level": str(admission.year_level),
+#         "total_fee": float(total_fee),
+#         "paid_fee": float(paid_amount),
+#         "due_fee": float(due_amount)
+#     })
+
+
+# -------------------------------------------------  Fees summary view  ----------------------------------------------------------
 
 
 
@@ -231,10 +285,134 @@ def office_staff_dashboard(request, id=None):
 
 
 
+@api_view(["GET"])
+def director_fee_summary(request):
+    month = request.GET.get("month")  
+    year = request.GET.get("year")    
+
+    # School-level summary
+    total_students = Student.objects.count()
+
+    fee_qs = FeeRecord.objects.all()
+
+    if month and year:
+        fee_qs = fee_qs.filter(month=month, payment_date__year=year)
+    elif year:
+        fee_qs = fee_qs.filter(payment_date__year=year)
+
+    total_fee = fee_qs.aggregate(
+        total=Coalesce(Sum('total_amount', output_field=DecimalField()), Decimal("0.00"))
+    )['total']
+
+    total_paid = fee_qs.aggregate(
+        paid=Coalesce(Sum('paid_amount', output_field=DecimalField()), Decimal("0.00"))
+    )['paid']
+
+    total_due = fee_qs.aggregate(
+        due=Coalesce(Sum('due_amount', output_field=DecimalField()), Decimal("0.00"))
+    )['due']
+
+    # Class-wise summary
+    class_data = []
+    all_class_periods = ClassPeriod.objects.select_related('classroom__room_type').all()
+
+    for period in all_class_periods:
+        students_in_class = Student.objects.filter(classes=period).distinct()
+        student_ids = students_in_class.values_list('id', flat=True)
+
+        class_fee_qs = FeeRecord.objects.filter(student_id__in=student_ids)
+        if month and year:
+            class_fee_qs = class_fee_qs.filter(month=month, payment_date__year=year)
+
+        class_total_fee = class_fee_qs.aggregate(
+            total=Coalesce(Sum('total_amount', output_field=DecimalField()), Decimal("0.00"))
+        )['total']
+
+        class_total_paid = class_fee_qs.aggregate(
+            paid=Coalesce(Sum('paid_amount', output_field=DecimalField()), Decimal("0.00"))
+        )['paid']
+
+        class_total_due = class_fee_qs.aggregate(
+            due=Coalesce(Sum('due_amount', output_field=DecimalField()), Decimal("0.00"))
+        )['due']
+
+        class_data.append({
+            "class_name": f"{period.classroom.room_type} - {period.classroom.room_name}",
+            "total_students": students_in_class.count(),
+            "total_fee": class_total_fee,
+            "paid_fee": class_total_paid,
+            "due_fee": class_total_due
+        })
+
+    data = {
+        "school_summary": {
+            "total_students": total_students,
+            "total_fee": total_fee,
+            "paid_fee": total_paid,
+            "due_fee": total_due,
+        },
+        "class_summary": class_data
+    }
+
+    return Response(data)
+
+
+# -------------------------------------------------  Guardian income distribution view  ----------------------------------------------------------
 
 
 
 
+
+@api_view(["GET"])
+def guardian_income_distribution(request):
+    bucket_size = int(request.GET.get("bucket_size", 10000)) 
+    max_income = int(request.GET.get("max_income", 200000))   
+
+    income_bucket_expr = ExpressionWrapper(
+        Func(
+            F('annual_income') / Value(bucket_size),
+            function='FLOOR'
+        ),
+        output_field=IntegerField()
+    )
+
+    data = (
+        Guardian.objects
+        .filter(annual_income__lt=max_income)
+        .annotate(income_bucket=income_bucket_expr)
+        .values('income_bucket')
+        .annotate(count=Count('id'))
+        .order_by('income_bucket')
+    )
+
+    result = []
+    for row in data:
+        start = row['income_bucket'] * bucket_size
+        end = start + bucket_size
+        result.append({
+            "range": f"₹{start} - ₹{end}",
+            "count": row["count"]
+        })
+
+    return Response(result)
+
+
+# ------------------------------------------------------------------------  livelihood  distribution view  ----------------------------------------------------------
+
+
+@api_view(["GET"])
+def livelihood_distribution(request):
+    govt_count = Guardian.objects.filter(means_of_livelihood='Govt').count()
+    non_govt_count = Guardian.objects.filter(means_of_livelihood='Non-Govt').count()
+
+    return Response([
+        {"category": "Government", "count": govt_count},
+        {"category": "Non-Government", "count": non_govt_count}
+    ])
+
+
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
@@ -976,8 +1154,13 @@ class ClassPeriodView(viewsets.ModelViewSet):
                 "details": result
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
+
+     
     
-    
+# As of 04June2025 at 12:15 AM
+# Re-implementation of Fee module based on the provided fee card
+from django.db.models import Q
+from collections import OrderedDict, defaultdict
 
 
 
@@ -1008,7 +1191,8 @@ class YearLevelFeeView(viewsets.ModelViewSet):
         return Response(grouped_fees[0] if grouped_fees else {})
     
     
-
+# Fee Record View
+# https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/
 class FeeRecordView(viewsets.ModelViewSet):
     serializer_class = FeeRecordSerializer
     queryset = FeeRecord.objects.all()
@@ -1022,30 +1206,34 @@ class FeeRecordView(viewsets.ModelViewSet):
         'student__user__last_name',
         'year_level_fees__year_level__level_name',
     ]
-
-    # Optional filtering by year_level using ?year_level=ID
+    
+    # https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/?year_level=6
     def get_queryset(self):
         queryset = super().get_queryset()
         request = self.request
 
-        # Filter by year level (optional)
         year_level_id = request.query_params.get('year_level')
         if year_level_id:
             queryset = queryset.filter(year_level_fees__year_level__id=year_level_id)
 
-        # Full name search
         search = request.query_params.get('search')
         if search:
             search = search.strip()
-            # Handle "first last" or "just first"
-            queryset = queryset.filter(
-                Q(student__user__first_name__icontains=search) |
-                Q(student__user__last_name__icontains=search) |
-                Q(student__user__first_name__icontains=search.split(' ')[0]) &
-                Q(student__user__last_name__icontains=' '.join(search.split(' ')[1:]))
-            )
+            search_parts = search.split(" ")
+
+            if len(search_parts) > 1:
+                queryset = queryset.filter(
+                    Q(student__user__first_name__icontains=search_parts[0]) &
+                    Q(student__user__last_name__icontains=' '.join(search_parts[1:]))
+                )
+            else:
+                queryset = queryset.filter(
+                    Q(student__user__first_name__icontains=search) |
+                    Q(student__user__last_name__icontains=search)
+                )
 
         return queryset.distinct()
+
     
     @action(detail=False, methods=['post'], url_path='submit_single_multi_month_fees')
     def submit_single_multi_month_fees(self, request):
@@ -1079,9 +1267,10 @@ class FeeRecordView(viewsets.ModelViewSet):
 
         return Response(responses, status=status.HTTP_200_OK)
 
-### Razorpay custom views
-
-    ### using custom view
+    ### Razorpay custom views
+    # https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/initiate-payment/
+    ### using custom view 
+    ### Added as of 12june25 at 02:20 PM
     @action(detail=False, methods=["post"], url_path="initiate-payment")
     def initiate_payment(self, request):
         serializer = FeeRecordRazorpaySerializer(data=request.data)
@@ -1091,14 +1280,14 @@ class FeeRecordView(viewsets.ModelViewSet):
         validated_data = serializer.validated_data
         total = validated_data['total_amount']
         late_fee = validated_data['late_fee']
-        amount = total + late_fee
-        
-        # Generate unique receipt number
+        paid_amount = validated_data['paid_amount']
+        amount_to_collect = total + late_fee  # This is the full due amount, not necessarily what's paid
+
         receipt_number = generate_receipt_number()
 
         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
         razorpay_order = client.order.create({
-            'amount': int(amount * 100),  # in paise
+            'amount': int(paid_amount * 100),  # Razorpay expects amount in paise
             'currency': 'INR',
             'payment_capture': '1',
             'receipt': receipt_number
@@ -1106,70 +1295,170 @@ class FeeRecordView(viewsets.ModelViewSet):
 
         return Response({
             'razorpay_order_id': razorpay_order['id'],
-            # 'razorpay_key': settings.RAZORPAY_KEY_ID,
-            'amount': float(amount),
+            'total_amount': float(total),
+            'late_fee': float(late_fee),
+            'paid_amount': float(paid_amount),
             'currency': 'INR',
             'receipt_number': receipt_number
         }, status=status.HTTP_200_OK)
 
+    
+    ### just added as of 13june25 at 11:21 AM
+    # https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/confirm-payment/
+    ### ------------------------------------- ###
+    # working completely fine just need to add complete fee record adding updated code here
     @action(detail=False, methods=["post"], url_path="confirm-payment")
     def confirm_payment(self, request):
         data = request.data
-        try:
-            razorpay_payment_id = data["razorpay_payment_id"]
-            razorpay_order_id = data["razorpay_order_id"]
-            razorpay_signature_id = data["razorpay_signature_id"]
-            student_id = data["student_id"]
-            month = data["month"]
-            fee_ids = data["year_level_fees"]
-        except KeyError:
-            return Response({"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST)
+        required_fields = [
+            "razorpay_payment_id",
+            "razorpay_order_id",
+            "razorpay_signature_id",
+            "student_id",
+            "month",
+            "year_level_fees",
+            "paid_amount",
+            "payment_mode",
+            "signature"
+        ]
+        missing = [field for field in required_fields if field not in data]
 
-        # Verify signature
+        if missing:
+            return Response({"error": f"Missing required fields: {', '.join(missing)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Verify Razorpay Signature
         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
         try:
             client.utility.verify_payment_signature({
-                "razorpay_order_id": razorpay_order_id,
-                "razorpay_payment_id": razorpay_payment_id,
-                "razorpay_signature_id": razorpay_signature_id
+                "razorpay_order_id": data["razorpay_order_id"],
+                "razorpay_payment_id": data["razorpay_payment_id"],
+                "razorpay_signature": data["razorpay_signature_id"]
             })
         except razorpay.errors.SignatureVerificationError:
             return Response({"error": "Payment verification failed"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create FeeRecord
-        student = Student.objects.get(id=student_id)
-        year_level_fees = YearLevelFee.objects.filter(id__in=fee_ids)
-        total = sum(fee.amount for fee in year_level_fees)
-        late_fee = Decimal("25.00") if date.today().day > 15 else Decimal("0.00")
-        total_paid = total + late_fee
+        # 2. Save FeeRecord
+        serializer = FeeRecordRazorpaySerializer(data=data)
+        if serializer.is_valid():
+            instance = serializer.save()
 
-        fee_record = FeeRecord.objects.create(
-            student=student,
-            month=month,
-            total_amount=total,
-            paid_amount=total_paid,
-            due_amount=0,
-            payment_date=date.today(),
-            payment_mode='Online',
-            late_fee=late_fee,
-            payment_status='Paid',
-            remarks='Paid via Razorpay',
-            signature='Verified Online',
-            razorpay_order_id=razorpay_order_id,
-            razorpay_payment_id=razorpay_payment_id,
-            razorpay_signature_id=razorpay_signature_id
+            # Serialize with full FeeRecordSerializer to return complete info
+            full_data = FeeRecordSerializer(instance).data
+
+            return Response({
+                "message": "Payment successful and FeeRecord saved.",
+                "fee_record": full_data
+            }, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+    
+    
+    # corrected amount issue as of 19June25 at 02:50 PM
+    # https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/student-fee-summary/?year_level=5
+    @action(detail=False, methods=["get"], url_path="student-fee-summary")
+    def student_fee_summary(self, request):
+        year_level = request.query_params.get("year_level")
+        search = request.query_params.get("search", "").strip()
+
+        qs = self.get_queryset()
+        filters = Q()
+
+        if year_level:
+            filters &= Q(student__student_year_levels__level__id=year_level)
+
+        if search:
+            filters &= (
+                Q(student__user__first_name__icontains=search) |
+                Q(student__user__last_name__icontains=search)
+            )
+
+        qs = qs.filter(filters).distinct()
+
+        summary = (
+            qs.values(
+                "student_id",
+                "student__user__first_name",
+                "student__user__last_name",
+                "student__student_year_levels__level__level_name"
+            )
+            .annotate(
+                total_amount=Coalesce(Sum("total_amount", output_field=FloatField()), Value(0.0)),
+                paid_amount=Coalesce(Sum("paid_amount", output_field=FloatField()), Value(0.0)),
+                late_fee=Coalesce(Sum("late_fee", output_field=FloatField()), Value(0.0))
+            )
         )
-        fee_record.year_level_fees.set(year_level_fees)
 
-        return Response({
-            "message": "Payment successful and FeeRecord saved.",
-            "receipt_number": fee_record.receipt_number
-        }, status=status.HTTP_201_CREATED)
+        result = []
+        for item in summary:
+            total = item["total_amount"] + item["late_fee"]
+            due = max(0, total - item["paid_amount"])
+
+            result.append({
+                "student_id": item["student_id"],
+                "student_name": f"{item['student__user__first_name']} {item['student__user__last_name']}",
+                "year_level": item["student__student_year_levels__level__level_name"],
+                "total_amount": float(total),
+                "paid_amount": float(item["paid_amount"]),
+                "due_amount": float(due),
+                "late_fee": float(item["late_fee"])  #  now included
+            })
+
+        return Response(result, status=status.HTTP_200_OK)
+
+    # corrected amount issue as of 19June25 at 02:50 PM
+    # https://187gwsw1-8000.inc1.devtunnels.ms/d/fee-record/monthly-summary/?year_level=2&month=June
+    @action(detail=False, methods=["get"], url_path="monthly-summary")
+    def monthly_summary(self, request):
+        month = request.query_params.get("month", "").strip()
+        year_level = request.query_params.get("year_level", "").strip()
+        search = request.query_params.get("search", "").strip()
+
+        qs = self.get_queryset()
+        filters = Q()
+
+        if month:
+            filters &= Q(month__iexact=month)
 
 
+        if year_level.isdigit():
+            filters &= Q(student__student_year_levels__level__id=year_level)
+        elif search:
+            filters &= Q(student__student_year_levels__level__level_name__icontains=search)
 
+        qs = qs.filter(filters).distinct()
 
+        if not qs.exists():
+            return Response({"detail": "No records found."}, status=status.HTTP_404_NOT_FOUND)
 
-     
-    
-    
+        summary = (
+            qs.values(
+                "month",
+                "student__user__first_name",
+                "student__user__last_name",
+                "student__student_year_levels__level__level_name"
+            )
+            .annotate(
+                total_amount=Coalesce(Sum("total_amount", output_field=FloatField()), Value(0.0)),
+                paid_amount=Coalesce(Sum("paid_amount", output_field=FloatField()), Value(0.0)),
+                late_fee=Coalesce(Sum("late_fee", output_field=FloatField()), Value(0.0))
+            )
+        )
+
+        formatted_summary = []
+        for item in summary:
+            total = item["total_amount"] + item["late_fee"]
+            due = max(0, total - item["paid_amount"])
+
+            formatted_summary.append({
+                "month": item["month"],
+                "student_name": f"{item['student__user__first_name']} {item['student__user__last_name']}",
+                "year_level": item["student__student_year_levels__level__level_name"],
+                "total_amount": float(total),
+                "paid_amount": float(item["paid_amount"]),
+                "due_amount": float(due),
+                "late_fee": float(item["late_fee"])  #  now included
+            })
+
+        return Response(formatted_summary, status=status.HTTP_200_OK)

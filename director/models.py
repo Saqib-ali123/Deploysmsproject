@@ -2,9 +2,10 @@ import random
 import string
 import uuid
 from django.db import models
-from authentication.models import *
-from student.models import *
-from .utils import Document_folder  
+from authentication.models import User
+from student.models import Student, Guardian,StudentYearLevel
+from .utils import Document_folder 
+from teacher.models import Teacher 
 
 
 
@@ -240,6 +241,9 @@ class ClassPeriod(models.Model):
 
 
 
+
+
+
 class Admission(models.Model):
     student = models.ForeignKey(Student, on_delete=models.DO_NOTHING)
     admission_date = models.DateField(auto_now_add=True)
@@ -247,7 +251,7 @@ class Admission(models.Model):
     previous_standard_studied = models.CharField(max_length=200)
     tc_letter = models.CharField(max_length=200)
     guardian = models.ForeignKey(Guardian, on_delete=models.DO_NOTHING)
-    year_level = models.ForeignKey("director.YearLevel", on_delete=models.DO_NOTHING)
+    year_level = models.ForeignKey('YearLevel', on_delete=models.DO_NOTHING)
     school_year = models.ForeignKey(SchoolYear, on_delete=models.DO_NOTHING)
     emergency_contact_n0 = models.CharField(max_length=100)
     entire_road_distance_from_home_to_school = models.CharField(max_length=100)
@@ -292,7 +296,7 @@ class YearLevel(models.Model):
 
     def __str__(self):
         return f" {self.level_name}"
-        # return f"{self.level_order} {self.level_name}"
+
 
     class Meta:
         verbose_name = "Year Level"
@@ -313,11 +317,11 @@ class YearLevelFee(models.Model):
         db_table = "YearLevelFee"
 
 class FeeRecord(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    student = models.ForeignKey("student.Student", on_delete=models.CASCADE)
     MONTH_CHOICES = [
-        ("July", "July"), ("Aug", "August"), ("Sep", "September"),
-        ("Oct", "October"), ("Nov", "November"), ("Dec", "December"),
-        ("Jan", "January"), ("Feb", "February"), ("March", "March"),
+        ("July", "July"), ("August", "August"), ("September", "September"),
+        ("October", "October"), ("November", "November"), ("December", "December"),
+        ("January", "January"), ("February", "February"), ("March", "March"),
         ("April", "April"), ("May", "May"), ("June", "June"),
     ]
     month = models.CharField(max_length=20, choices=MONTH_CHOICES)
@@ -327,6 +331,7 @@ class FeeRecord(models.Model):
     due_amount = models.DecimalField(max_digits=8, decimal_places=2)
     payment_date = models.DateField(auto_now_add=True)
     payment_mode = models.CharField(max_length=20, choices=[('Cash', 'Cash'), ('Online', 'Online'), ('Cheque', 'Cheque')])
+    is_cheque_cleared = models.BooleanField(default=False)  # Added as of 11June25 at 12:39 PM
     receipt_number = models.CharField(max_length=10, unique=True, editable=False, blank=True, auto_created=True)
     late_fee = models.DecimalField(max_digits=8, decimal_places=2)
     payment_status = models.CharField(max_length=20, choices=[('Paid', 'Paid'), ('Unpaid', 'Unpaid')])
@@ -363,13 +368,13 @@ class FeeRecord(models.Model):
 
 
 class OfficeStaff(models.Model):
-    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True)
+    user = models.OneToOneField("authentication.User", on_delete=models.SET_NULL, null=True)
     phone_no = models.CharField(max_length=20)
     gender = models.CharField(max_length=20)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     date_joined = models.DateField(auto_now_add=True)
-    student = models.ManyToManyField(Student, blank=True, related_name="managed_by_staff")
-    teacher = models.ManyToManyField(Teacher, blank=True, related_name="managed_by_staff")
+    student = models.ManyToManyField("student.Student", blank=True, related_name="managed_by_staff")
+    teacher = models.ManyToManyField("teacher.Teacher", blank=True, related_name="managed_by_staff")
     admissions = models.ManyToManyField(Admission, blank=True, related_name="handled_by_staff")
 
     def __str__(self):
@@ -399,9 +404,9 @@ class Document(models.Model):
     document_types = models.ManyToManyField(DocumentType)
     identities = models.CharField(max_length=1000, blank=True, null=True)
     
-    student = models.ForeignKey(Student, on_delete=models.SET_NULL, null=True, blank=True)
+    student = models.ForeignKey("student.Student", on_delete=models.SET_NULL, null=True, blank=True)
     teacher = models.ForeignKey("teacher.Teacher", on_delete=models.SET_NULL, null=True, blank=True)
-    guardian = models.ForeignKey(Guardian, on_delete=models.SET_NULL, null=True, blank=True)
+    guardian = models.ForeignKey("student.Guardian", on_delete=models.SET_NULL, null=True, blank=True)
     office_staff = models.ForeignKey(OfficeStaff, on_delete=models.SET_NULL, null=True, blank=True)
 
     uploaded_at = models.DateTimeField(auto_now_add=True)

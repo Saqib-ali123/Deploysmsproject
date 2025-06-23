@@ -5,9 +5,9 @@ from rest_framework.routers import DefaultRouter
 router = DefaultRouter()
 # router.register(r'studentYearLevel', StudentYearLevelView)
 router.register(r'students', StudentView)
+
 router.register(r'guardian', GuardianProfileView)
 router.register(r'studentyearlevel', StudentYearLevelView)   # As of 29May25 at 02:30 PM
-
 
 
 urlpatterns = [
