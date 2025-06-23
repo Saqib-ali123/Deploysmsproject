@@ -99,7 +99,7 @@ class StudentSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("User with this email already exists.")
 
         user = User.objects.create_user(
-            username=user_data['email'],  # or other unique username logic
+            # username=user_data['email'],  # or other unique username logic
             email=user_data['email'],
             first_name=user_data['first_name'],
             last_name=user_data['last_name'],
@@ -241,7 +241,7 @@ class GuardianSerializer(serializers.ModelSerializer):
         return instance
 
 # ## As of 19June25 at 01:30 PM
-from .models import StudentYearLevel
+# from .models import StudentYearLevel
 
 
     def to_representation(self, instance):
