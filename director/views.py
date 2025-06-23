@@ -29,7 +29,7 @@ import json  # 🔸 This goes at the top of the file
 from django.db.models import Q
 from collections import OrderedDict, defaultdict
 
-client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
+# client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
 
 import random
 import string
@@ -41,7 +41,7 @@ from django.db.models import Q, Sum, Value, FloatField
 
 
 
-# client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
 ### Function to generate auto receipt no. called it inside initiate payment
 def generate_receipt_number():
