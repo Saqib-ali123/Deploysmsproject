@@ -407,6 +407,7 @@ class AdmissionSerializer(serializers.ModelSerializer):
         year_level = validated_data.pop('year_level', None)
         school_year = validated_data.pop('school_year', None)
 
+        # --- Student processing ---
         classes_data = student_data.pop('classes', [])
         if isinstance(classes_data, str):
             try:
@@ -436,23 +437,41 @@ class AdmissionSerializer(serializers.ModelSerializer):
         if classes_data:
             student.classes.set(classes_data)
 
+        # --- Address and banking ---
         if address_data:
             Address.objects.update_or_create(user=user, defaults=address_data)
         if banking_data:
             BankingDetail.objects.update_or_create(user=user, defaults=banking_data)
 
-        guardian_user = User.objects.filter(email__iexact=guardian_data.get('email')).first()
-        if guardian_user:
-            guardian = Guardian.objects.filter(user=guardian_user).first()
-            if not guardian:
-                guardian_serializer = GuardianSerializer(data=guardian_data)
-                guardian_serializer.is_valid(raise_exception=True)
-                guardian = guardian_serializer.save()
-        else:
-            guardian_serializer = GuardianSerializer(data=guardian_data)
-            guardian_serializer.is_valid(raise_exception=True)
-            guardian = guardian_serializer.save()
+        # --- Guardian user creation ---
+        guardian_user_data = {
+            'first_name': guardian_data.pop('first_name', ''),
+            'middle_name': guardian_data.pop('middle_name', ''),
+            'last_name': guardian_data.pop('last_name', ''),
+            'email': guardian_data.pop('email'),
+            'password': guardian_data.pop('password', None),
+            'user_profile': guardian_data.pop('user_profile', None),
+        }
 
+        guardian_user = User.objects.filter(email__iexact=guardian_user_data['email']).first()
+        if not guardian_user:
+            role, _ = Role.objects.get_or_create(name='guardian')
+            guardian_user = User.objects.create_user(**guardian_user_data)
+            guardian_user.role.add(role)
+        else:
+            for attr, value in guardian_user_data.items():
+                if value:
+                    setattr(guardian_user, attr, value)
+            guardian_user.save()
+
+        # --- Guardian model creation or update ---
+        guardian, _ = Guardian.objects.get_or_create(user=guardian_user, defaults=guardian_data)
+        if guardian_data:
+            guardian_serializer = GuardianSerializer(guardian, data=guardian_data, partial=True)
+            guardian_serializer.is_valid(raise_exception=True)
+            guardian_serializer.save()
+
+        # --- Admission creation ---
         admission = Admission.objects.create(
             student=student,
             guardian=guardian,
@@ -479,6 +498,7 @@ class AdmissionSerializer(serializers.ModelSerializer):
             )
 
         return admission
+
 
     def update(self, instance, validated_data):
         student_data = validated_data.pop('student', None)

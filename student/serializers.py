@@ -51,7 +51,7 @@ class StudentSerializer(serializers.ModelSerializer):
     number_of_siblings = serializers.IntegerField(required=False, allow_null=True)
 
     # Classes many-to-many
-    classes = serializers.PrimaryKeyRelatedField(queryset=ClassPeriod.objects.all(), many=True,required=False, allow_null=True)
+    classes = serializers.PrimaryKeyRelatedField(queryset=ClassPeriod.objects.all(), many=True,required=False,allow_empty=True,default=[])
 
     class Meta:
         model = Student
@@ -82,7 +82,18 @@ class StudentSerializer(serializers.ModelSerializer):
             'password': validated_data.pop('password', None),
             'user_profile': validated_data.pop('user_profile', None),
         }
-        classes_data = validated_data.pop('classes')
+        classes_data = validated_data.pop('classes',[])
+            # ✅ Normalize class IDs to integers
+        if isinstance(classes_data, list):
+            try:
+                classes_data = [int(c) for c in classes_data]
+            except (ValueError, TypeError):
+                raise serializers.ValidationError({"classes": "Class IDs must be integers."})
+        elif isinstance(classes_data, str):
+            if classes_data.isdigit():
+                classes_data = [int(classes_data)]
+            else:
+                raise serializers.ValidationError({"classes": "Invalid class ID format."})
 
         if User.objects.filter(email=user_data['email']).exists():
             raise serializers.ValidationError("User with this email already exists.")
@@ -100,7 +111,11 @@ class StudentSerializer(serializers.ModelSerializer):
         user.save()
 
         student = Student.objects.create(user=user, **validated_data)
-        student.classes.set(classes_data)
+        # student.classes.set(classes_data)
+        # ✅ Only call .set() if the list is not empty
+        if classes_data:
+            student.classes.set(classes_data)
+
         return student
 
     def update(self, instance, validated_data):
@@ -122,6 +137,7 @@ class StudentSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
+
 
 
 
