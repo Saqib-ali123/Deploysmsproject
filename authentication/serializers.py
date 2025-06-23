@@ -211,7 +211,7 @@ class UserSerializer(serializers.ModelSerializer):
 
         user = request.user
         if not user.is_authenticated:
-            raise ValidationError({"error": "Authentication required to create users."})
+             raise ValidationError({"error": "Authentication required to create users."})
 
         user_roles = user.role.all()
         user_role = user_roles[0].name.lower() if user_roles else None
