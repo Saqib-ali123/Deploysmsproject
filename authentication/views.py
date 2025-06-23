@@ -60,12 +60,10 @@ def LoginView(request):
     if request.method == "POST":
         email = request.data.get("email")
         password = request.data.get("password")
-        # role = request.data.get("role")
 
         Serializer_Data = LoginSerializers(data=request.data)
 
         if Serializer_Data.is_valid():
-
             user = authenticate(email=email, password=password)
 
             if user is None:
@@ -73,27 +71,76 @@ def LoginView(request):
                     {"Message": "Invalid Credentials"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             refresh = RefreshToken.for_user(user)
             access = str(refresh.access_token)
-            refresh_token = str(refresh)    
+            refresh_token = str(refresh)
 
-            user_role = user.role.all()
-            
-            role_names = [role.name for role in user_role]
+            user_roles = user.role.all()
+            role_names = [role.name for role in user_roles]
 
-            return Response(
-                {
-                    "Message": "User logged in successfully",
-                    "Access Token": access,
-                    "Refresh Token": refresh_token,
-                    "User ID": user.id,
-                    "Roles": role_names,
-                },
-                status=status.HTTP_200_OK,
-            )
+            # Assuming only one role per user
+            role_name = role_names[0] if role_names else None
+
+            role_id = None
+            role_key = None
+
+            if role_name == "teacher":
+                try:
+                    teacher = Teacher.objects.get(user=user)
+                    role_id = teacher.id
+                    role_key = "teacher_id"
+                except Teacher.DoesNotExist:
+                    pass
+
+            elif role_name == "student":
+                try:
+                    student = Student.objects.get(user=user)
+                    role_id = student.id
+                    role_key = "student_id"
+                except Student.DoesNotExist:
+                    pass
+
+            elif role_name == "guardian":
+                try:
+                    guardian = Guardian.objects.get(user=user)
+                    role_id = guardian.id
+                    role_key = "guardian_id"
+                except Guardian.DoesNotExist:
+                    pass
+
+            elif role_name == "director":
+                try:
+                    director = Director.objects.get(user=user)
+                    role_id = director.id
+                    role_key = "director_id"
+                except Director.DoesNotExist:
+                    pass
+            elif role_name=='office staff':
+                try:
+                  staf=OfficeStaff.objects.get(user=user)
+                  role_id=staf.id
+                  role_key="staff_id"
+                except OfficeStaff.DoesNotExist:
+                    pass
+
+
+            response_data = {
+                "Message": "User logged in successfully",
+                "Access Token": access,
+                "Refresh Token": refresh_token,
+                "User ID": user.id,
+                "Roles": role_names,
+            }
+
+            if role_key:
+                response_data[role_key] = role_id
+
+            return Response(response_data, status=status.HTTP_200_OK)
+
         else:
             return Response(Serializer_Data.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 @api_view(["POST"])

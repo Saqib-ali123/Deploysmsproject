@@ -23,6 +23,8 @@ class MultipleAttendanceViewSet1(ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         data = request.data
+
+        # ➤ Date Handling
         try:
             marked_at_str = data.get("marked_at", None)
             if marked_at_str:
@@ -32,6 +34,7 @@ class MultipleAttendanceViewSet1(ModelViewSet):
         except ValueError:
             return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # ➤ Teacher Check
         teacher_id = data.get("teacher_id")
         if not teacher_id:
             return Response({"error": "teacher_id is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -41,18 +44,29 @@ class MultipleAttendanceViewSet1(ModelViewSet):
         except Teacher.DoesNotExist:
             return Response({"error": "Invalid teacher_id."}, status=status.HTTP_404_NOT_FOUND)
 
+        # ➤ Validate All Students First
         allowed_statuses = {'P', 'A', 'L'}
-        created_records = []
+        conflict_students = []
 
+        for status_code in allowed_statuses:
+            student_ids = data.get(status_code, [])
+            for sid in student_ids:
+                if StudentAttendance.objects.filter(student_id=sid, marked_at=marked_at).exists():
+                    conflict_students.append(sid)
+
+        # ➤ If Any Conflict Found
+        if conflict_students:
+            return Response({
+                "error": "Attendance already exists for the following student(s) on this date."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # ➤ Proceed with Attendance Creation
+        created_records = []
         for status_code in allowed_statuses:
             student_ids = data.get(status_code, [])
             for sid in student_ids:
                 try:
                     student = Student.objects.get(id=sid)
-
-                    if StudentAttendance.objects.filter(student=student, marked_at=marked_at).exists():
-                        continue
-
                     year_level = student.studentyearlevel_set.last().level
 
                     attendance = StudentAttendance.objects.create(
@@ -68,6 +82,7 @@ class MultipleAttendanceViewSet1(ModelViewSet):
 
         serializer = self.get_serializer(created_records, many=True)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 class AttendanceReportViewSet(ReadOnlyModelViewSet):
     serializer_class = StudentAttendanceSerializer
@@ -115,17 +130,26 @@ class AttendanceReportViewSet(ReadOnlyModelViewSet):
 
 class DirectorAttendanceDashboard(ViewSet):
     def list(self, request):
-        today = date.today()
+        date_str = request.query_params.get("date")
+        try:
+            if date_str:
+                marked_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            else:
+                marked_date = date.today()              
+        except ValueError:
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
+
+        # Step 2: Get attendance summary
         total_students = Student.objects.count()
-        present_today = StudentAttendance.objects.filter(marked_at=today, status='P').count()
+        present_today = StudentAttendance.objects.filter(marked_at=marked_date, status='P').count()
         overall_percentage = (present_today / total_students * 100) if total_students else 0
 
-        
+        # Step 3: Class-wise breakdown
         class_wise_data = []
         all_classes = YearLevel.objects.all()
 
         for cls in all_classes:
-            attendances = StudentAttendance.objects.filter(marked_at=today, year_level=cls)
+            attendances = StudentAttendance.objects.filter(marked_at=marked_date, year_level=cls)
             total = attendances.count()
             present = attendances.filter(status='P').count()
             percentage = (present / total * 100) if total else 0
@@ -138,14 +162,15 @@ class DirectorAttendanceDashboard(ViewSet):
             })
 
         return Response({
-            "date": today.strftime("%Y-%m-%d"),
+            "date": marked_date.strftime("%Y-%m-%d"),
             "overall_attendance": {
                 "present": present_today,
                 "total": total_students,
                 "percentage": f"{overall_percentage:.1f}%"
             },
             "class_wise_attendance": class_wise_data
-        })        
+        })
+
 class TeacherAttendanceDashboard(ViewSet):
     def list(self, request):
         today = date.today()
