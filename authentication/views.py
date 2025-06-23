@@ -71,6 +71,7 @@ def LoginView(request):
         serializer = LoginSerializers(data=request.data, context={'request': request})
 
         if serializer.is_valid():
+
             user = authenticate(email=email, password=password)
 
             if user is None:
@@ -95,8 +96,54 @@ def LoginView(request):
                 request = request  # from outer scope
                 profile_url = request.build_absolute_uri(user.user_profile.url)
 
-            return Response(
-                {
+
+            # Assuming only one role per user
+            role_name = role_names[0] if role_names else None
+
+            role_id = None
+            role_key = None
+
+            if role_name == "teacher":
+                try:
+                    teacher = Teacher.objects.get(user=user)
+                    role_id = teacher.id
+                    role_key = "teacher_id"
+                except Teacher.DoesNotExist:
+                    pass
+
+            elif role_name == "student":
+                try:
+                    student = Student.objects.get(user=user)
+                    role_id = student.id
+                    role_key = "student_id"
+                except Student.DoesNotExist:
+                    pass
+
+            elif role_name == "guardian":
+                try:
+                    guardian = Guardian.objects.get(user=user)
+                    role_id = guardian.id
+                    role_key = "guardian_id"
+                except Guardian.DoesNotExist:
+                    pass
+
+            elif role_name == "director":
+                try:
+                    director = Director.objects.get(user=user)
+                    role_id = director.id
+                    role_key = "director_id"
+                except Director.DoesNotExist:
+                    pass
+            elif role_name=='office staff':
+                try:
+                  staf=OfficeStaff.objects.get(user=user)
+                  role_id=staf.id
+                  role_key="staff_id"
+                except OfficeStaff.DoesNotExist:
+                    pass
+
+
+            response_data = {
                     "Message": "User logged in successfully",
                     "Access Token": access,
                     "Refresh Token": refresh_token,
@@ -104,11 +151,16 @@ def LoginView(request):
                     "Roles": role_names,
                     "name": full_name,
                     "user_profile": profile_url or None,
-                },
-                status=status.HTTP_200_OK,
-            )
+                }
+
+            if role_key:
+                response_data[role_key] = role_id
+
+            return Response(response_data, status=status.HTTP_200_OK)
+
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 

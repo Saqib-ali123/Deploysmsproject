@@ -295,7 +295,7 @@ class YearLevel(models.Model):
     level_order = models.IntegerField()
 
     def __str__(self):
-        return f" {self.level_name}"
+        return f"{self.level_name}"
 
 
     class Meta:
