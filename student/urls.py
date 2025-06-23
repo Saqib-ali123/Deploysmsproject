@@ -6,10 +6,8 @@ router = DefaultRouter()
 # router.register(r'studentYearLevel', StudentYearLevelView)
 router.register(r'students', StudentView)
 
-router.register(r'gaurdian', GuardianProfileView)
-
-router.register(r'studentyearlevels', StudentYearLevelView,basename='studentyearlevelss')   # As of 29May25 at 02:30 PM
-
+router.register(r'guardian', GuardianProfileView)
+router.register(r'studentyearlevel', StudentYearLevelView)   # As of 29May25 at 02:30 PM
 
 
 urlpatterns = [

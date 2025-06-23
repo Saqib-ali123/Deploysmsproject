@@ -55,15 +55,23 @@ def ChangePasswordView(request):
     return Response(serialized.errors, status=400)
 
 
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import authenticate
+from rest_framework_simplejwt.tokens import RefreshToken
+from .serializers import LoginSerializers  # adjust import if needed
+
 @api_view(["POST"])
 def LoginView(request):
     if request.method == "POST":
         email = request.data.get("email")
         password = request.data.get("password")
 
-        Serializer_Data = LoginSerializers(data=request.data)
+        serializer = LoginSerializers(data=request.data, context={'request': request})
 
-        if Serializer_Data.is_valid():
+        if serializer.is_valid():
+
             user = authenticate(email=email, password=password)
 
             if user is None:
@@ -78,6 +86,16 @@ def LoginView(request):
 
             user_roles = user.role.all()
             role_names = [role.name for role in user_roles]
+
+            # Build full name
+            full_name = f"{user.first_name} {user.middle_name or ''} {user.last_name}".strip()
+
+            # Build user_profile URL
+            profile_url = None
+            if user.user_profile:
+                request = request  # from outer scope
+                profile_url = request.build_absolute_uri(user.user_profile.url)
+
 
             # Assuming only one role per user
             role_name = role_names[0] if role_names else None
@@ -126,12 +144,14 @@ def LoginView(request):
 
 
             response_data = {
-                "Message": "User logged in successfully",
-                "Access Token": access,
-                "Refresh Token": refresh_token,
-                "User ID": user.id,
-                "Roles": role_names,
-            }
+                    "Message": "User logged in successfully",
+                    "Access Token": access,
+                    "Refresh Token": refresh_token,
+                    "User ID": user.id,
+                    "Roles": role_names,
+                    "name": full_name,
+                    "user_profile": profile_url or None,
+                }
 
             if role_key:
                 response_data[role_key] = role_id
@@ -139,7 +159,8 @@ def LoginView(request):
             return Response(response_data, status=status.HTTP_200_OK)
 
         else:
-            return Response(Serializer_Data.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 
