@@ -2,7 +2,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import serializers
 
 from authentication.models import User
-from director.models import Director, OfficeStaff, Role,YearLevel, SchoolYear, ClassPeriod, Director, Guardian
+from director.models import Director, OfficeStaff, Role,YearLevel, SchoolYear, ClassPeriod, Director
 from director.serializers import RoleSerializer
 from student.models import Guardian, Student, StudentYearLevel
 from teacher.models import Teacher
