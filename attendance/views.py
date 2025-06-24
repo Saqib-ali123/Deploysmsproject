@@ -67,7 +67,7 @@ class MultipleAttendanceViewSet1(ModelViewSet):
             for sid in student_ids:
                 try:
                     student = Student.objects.get(id=sid)
-                    year_level = student.studentyearlevel_set.last().level
+                    year_level = student.student_year_levels.last().level
 
                     attendance = StudentAttendance.objects.create(
                         student=student,

@@ -2,8 +2,8 @@ import random
 import string
 import uuid
 from django.db import models
-from authentication.models import User
-from student.models import Student, Guardian,StudentYearLevel
+# from authentication.models import User
+# from student.models import Student, Guardian,StudentYearLevel
 from .utils import Document_folder 
 from teacher.models import Teacher 
 
@@ -245,12 +245,12 @@ class ClassPeriod(models.Model):
 
 
 class Admission(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.DO_NOTHING)
+    student = models.ForeignKey('student.Student', on_delete=models.DO_NOTHING)
     admission_date = models.DateField(auto_now_add=True)
     previous_school_name = models.CharField(max_length=200)
     previous_standard_studied = models.CharField(max_length=200)
     tc_letter = models.CharField(max_length=200)
-    guardian = models.ForeignKey(Guardian, on_delete=models.DO_NOTHING)
+    guardian = models.ForeignKey('student.Guardian', on_delete=models.DO_NOTHING)
     year_level = models.ForeignKey('YearLevel', on_delete=models.DO_NOTHING)
     school_year = models.ForeignKey(SchoolYear, on_delete=models.DO_NOTHING)
     emergency_contact_n0 = models.CharField(max_length=100)
