@@ -745,8 +745,8 @@ class FeeRecordSerializer(serializers.ModelSerializer):
     payment_date = serializers.DateField(read_only=True)
     receipt_number = serializers.CharField(read_only=True)
     payment_status = serializers.CharField(max_length=20, read_only=True)
-    remarks = serializers.CharField(max_length=255)
-    signature = serializers.CharField(max_length=100)
+    remarks = serializers.CharField(max_length=255, required=False, allow_null=True)
+    received_by = serializers.CharField(max_length=100,required=False, allow_null=True)
     
     payment_mode = serializers.ChoiceField(choices=FeeRecord._meta.get_field('payment_mode').choices)
 
@@ -757,7 +757,7 @@ class FeeRecordSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'student', 'student_id', 'month', 'year_level_fees', 'year_level_fees_grouped',
             'total_amount', 'paid_amount', 'due_amount', 'payment_date', 'payment_mode', 'is_cheque_cleared','receipt_number',
-            'late_fee', 'payment_status', 'remarks', 'signature'
+            'late_fee', 'payment_status', 'remarks', 'received_by'
         ]
         read_only_fields = ['receipt_number', 'payment_date', 'total_amount', 'due_amount', 'late_fee']
 
@@ -857,7 +857,7 @@ class FeeRecordRazorpaySerializer(serializers.ModelSerializer):
         model = FeeRecord
         fields = [
             'id', 'student_id', 'month', 'year_level_fees', 'total_amount', 'paid_amount', 'due_amount',
-            'late_fee', 'payment_mode', 'payment_status', 'remarks', 'signature',
+            'late_fee', 'payment_mode', 'payment_status', 'remarks', 'received_by',
             'razorpay_order_id', 'razorpay_payment_id', 'razorpay_signature_id', 'receipt_number'
         ]
         read_only_fields = ['total_amount', 'due_amount', 'late_fee', 'payment_status',
