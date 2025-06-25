@@ -2,8 +2,8 @@ import random
 import string
 import uuid
 from django.db import models
-from authentication.models import User
-from student.models import Student, Guardian,StudentYearLevel
+# from authentication.models import User
+# from student.models import Student, Guardian,StudentYearLevel
 from .utils import Document_folder 
 from teacher.models import Teacher 
 
@@ -62,18 +62,18 @@ class City(models.Model):
 
 class Address(models.Model):
     user = models.ForeignKey("authentication.User", on_delete=models.DO_NOTHING)
-    house_no = models.IntegerField()
-    habitation = models.CharField(max_length=100)
-    word_no = models.IntegerField()
-    zone_no = models.IntegerField()
-    block = models.CharField(max_length=100)
-    district = models.CharField(max_length=100)
-    division = models.CharField(max_length=100)
-    area_code = models.IntegerField()
+    house_no = models.IntegerField(null=True, blank=True)
+    habitation = models.CharField(max_length=100,null=True, blank=True)
+    word_no = models.IntegerField(null=True, blank=True)
+    zone_no = models.IntegerField(null=True, blank=True)
+    block = models.CharField(max_length=100,null=True, blank=True)
+    district = models.CharField(max_length=100,null=True, blank=True)
+    division = models.CharField(max_length=100,null=True, blank=True)
+    area_code = models.IntegerField(null=True, blank=True)
     country = models.ForeignKey(Country, on_delete=models.DO_NOTHING)
     state = models.ForeignKey(State, on_delete=models.DO_NOTHING)
     city = models.ForeignKey(City, on_delete=models.DO_NOTHING)
-    address_line = models.CharField(max_length=250)
+    address_line = models.CharField(max_length=250,null=True, blank=True)
 
     def __str__(self):
         return f"{self.user} - {self.address_line}"
@@ -245,12 +245,12 @@ class ClassPeriod(models.Model):
 
 
 class Admission(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.DO_NOTHING)
+    student = models.ForeignKey('student.Student', on_delete=models.DO_NOTHING)
     admission_date = models.DateField(auto_now_add=True)
     previous_school_name = models.CharField(max_length=200)
     previous_standard_studied = models.CharField(max_length=200)
     tc_letter = models.CharField(max_length=200)
-    guardian = models.ForeignKey(Guardian, on_delete=models.DO_NOTHING)
+    guardian = models.ForeignKey('student.Guardian', on_delete=models.DO_NOTHING)
     year_level = models.ForeignKey('YearLevel', on_delete=models.DO_NOTHING)
     school_year = models.ForeignKey(SchoolYear, on_delete=models.DO_NOTHING)
     emergency_contact_n0 = models.CharField(max_length=100)

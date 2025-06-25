@@ -99,7 +99,7 @@ class StudentSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("User with this email already exists.")
 
         user = User.objects.create_user(
-            username=user_data['email'],  # or other unique username logic
+
             email=user_data['email'],
             first_name=user_data['first_name'],
             last_name=user_data['last_name'],
@@ -239,8 +239,6 @@ class GuardianSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
-
-
 
 
     def to_representation(self, instance):
