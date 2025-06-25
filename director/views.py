@@ -29,7 +29,7 @@ import json  # 🔸 This goes at the top of the file
 from django.db.models import Q
 from collections import OrderedDict, defaultdict
 
-client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+# client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
 
 import random
 import string
@@ -41,7 +41,7 @@ from django.db.models import Q, Sum, Value, FloatField
 
 
 
-# client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
 ### Function to generate auto receipt no. called it inside initiate payment
 def generate_receipt_number():
@@ -1243,7 +1243,7 @@ class FeeRecordView(viewsets.ModelViewSet):
         paid_amount = request.data.get('paid_amount')
         payment_mode = request.data.get('payment_mode')
         remarks = request.data.get('remarks')
-        signature = request.data.get('signature')
+        received_by = request.data.get('received_by')
 
         if not months or not isinstance(months, list):
             return Response({"error": "Months must be a non-empty list."}, status=status.HTTP_400_BAD_REQUEST)
@@ -1257,7 +1257,7 @@ class FeeRecordView(viewsets.ModelViewSet):
                 "paid_amount": paid_amount,
                 "payment_mode": payment_mode,
                 "remarks": f"{remarks or ''} ({month})",
-                "signature": signature
+                "received_by": received_by
             })
             if serializer.is_valid():
                 serializer.save()
@@ -1319,7 +1319,7 @@ class FeeRecordView(viewsets.ModelViewSet):
             "year_level_fees",
             "paid_amount",
             "payment_mode",
-            "signature"
+            "received_by"
         ]
         missing = [field for field in required_fields if field not in data]
 
