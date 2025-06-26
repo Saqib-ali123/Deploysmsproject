@@ -264,7 +264,6 @@
 #     return os.path.join(base_path, folder_path, filename)
 
 
-# added as of 19 june25 at 11:11 PM from here
 import os
 
 def Document_folder(instance, filename):
@@ -297,5 +296,4 @@ def Document_folder(instance, filename):
         folder_path = "unknown"
 
     return os.path.join(base_path, folder_path, filename)
-
 

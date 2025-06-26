@@ -28,8 +28,10 @@ from rest_framework import viewsets, status
 import json  # 🔸 This goes at the top of the file
 from django.db.models import Q
 from collections import OrderedDict, defaultdict
+from datetime import datetime, timedelta
 
-# client = razorpay.Client(auth=(settings.RAZORPAY_API_KEY, settings.RAZORPAY_API_KEY_SECRET))
+
+client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
 import random
 import string
@@ -443,7 +445,194 @@ def livelihood_distribution(request):
 
 
 
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+### ----------------------------- Category Count Dashboard API ----------------- ###
+### ------------------- As of 25June25 at 12:35 --------------- ###
+
+@api_view(["GET"])
+def student_category(request):
+    category_counts = Student.objects.values('category').annotate(total=Count('id'))
+    total_students = Student.objects.count()
+
+    # Map category codes to their display names
+    category_display_map = dict(Student._meta.get_field('category').choices)
+
+    result = [
+        {
+            # "category_code": item["category"],  # Uncomment if needed
+            "category_name": category_display_map.get(item["category"], "Unknown"),
+            "count": item["total"],
+            "percentage": round((item["total"] / total_students) * 100, 2) if total_students > 0 else 0.0
+        }
+        for item in category_counts
+    ]
+
+    return Response(result, status=status.HTTP_200_OK)
+
+### -------------------------------------------------------------- ###
+
+### ----------------------------- Income Distribution Dashboard API ----------------- ###
+### ------------------- As of 25June25 at 12:35 --------------- ###
+
+@api_view(["GET"])
+def guardian_income_distribution(request):
+    # Define updated income brackets
+    brackets = {
+        "Below 1 Lakh": (0, 100000),
+        "1 – 3 Lakhs": (100001, 300000),
+        "3 – 5 Lakhs": (300001, 500000),
+        "5 – 8 Lakhs": (500001, 800000),
+        "8 – 10 Lakhs": (800001, 1000000),
+        "Above 10 Lakhs": (1000001, None),
+    }
+
+    total_guardians = Guardian.objects.exclude(annual_income__isnull=True).count()
+
+    results = []
+
+    for label, (min_income, max_income) in brackets.items():
+        if max_income is not None:
+            count = Guardian.objects.filter(
+                annual_income__gte=min_income,
+                annual_income__lte=max_income
+            ).count()
+        else:
+            count = Guardian.objects.filter(
+                annual_income__gte=min_income
+            ).count()
+
+        percentage = round((count / total_guardians) * 100, 2) if total_guardians > 0 else 0.0
+
+        results.append({
+            "income_range": label,
+            "count": count,
+            "percentage": percentage
+        })
+
+    return Response(results, status=status.HTTP_200_OK)
+### -------------------------------------------------------------- ###
+
+
+### ------------------- As of 25June25 at 12:35 --------------- ###
+### ---- complete fee dashboard ------- ###
+@api_view(["GET"])
+def fee_dashboard(request):
+    filter_month = request.query_params.get("month")
+    qs = FeeRecord.objects.all()
+
+    # -------- Overall Summary --------
+    total = qs.aggregate(
+        total=Coalesce(Sum(F("total_amount") + F("late_fee"), output_field=FloatField()), Value(0.0))
+    )["total"]
+    paid = qs.aggregate(
+        paid=Coalesce(Sum("paid_amount", output_field=FloatField()), Value(0.0))
+    )["paid"]
+    late_fee = qs.aggregate(
+        late=Coalesce(Sum("late_fee", output_field=FloatField()), Value(0.0))
+    )["late"]
+
+    due = max(0, total - paid)
+    paid_percent = round((paid / total) * 100, 2) if total > 0 else 0.0
+    due_percent = round((due / total) * 100, 2) if total > 0 else 0.0
+    total_percent = round(paid_percent + due_percent, 2)
+
+    overall_summary = {
+        "total_amount": round(total, 2),
+        "paid_amount": round(paid, 2),
+        "due_amount": round(due, 2),
+        "late_fee": round(late_fee, 2),
+        "paid_percent": paid_percent,
+        "due_percent": due_percent,
+        "total_percent": total_percent
+    }
+
+    # -------- Monthly Summary --------
+    # https://187gwsw1-7000.inc1.devtunnels.ms/d/fee-dashboard/?month=June
+    monthly_qs = qs.filter(month__iexact=filter_month) if filter_month else qs
+    monthly_data = (
+        monthly_qs.values("month")
+        .annotate(
+            total_base=Coalesce(Sum("total_amount", output_field=FloatField()), Value(0.0)),
+            late_fee=Coalesce(Sum("late_fee", output_field=FloatField()), Value(0.0)),
+            paid=Coalesce(Sum("paid_amount", output_field=FloatField()), Value(0.0)),
+        )
+        .order_by("month")
+    )
+
+    monthly_summary = []
+    for item in monthly_data:
+        total = item["total_base"] + item["late_fee"]
+        due = max(0, total - item["paid"])
+        monthly_summary.append({
+            "month": item["month"],
+            "total_amount": round(total, 2),
+            "paid_amount": round(item["paid"], 2),
+            "due_amount": round(due, 2),
+            "late_fee": round(item["late_fee"], 2),
+            "paid_percent": round((item["paid"] / total) * 100, 2) if total > 0 else 0.0,
+            "due_percent": round((due / total) * 100, 2) if total > 0 else 0.0,
+            "late_fee_percent": round((item["late_fee"] / total) * 100, 2) if total > 0 else 0.0,
+            "total_percent": 100.0
+        })
+
+    # -------- Payment Mode Distribution --------
+    payment_data = FeeRecord.objects.values("payment_mode").annotate(count=Count("id"))
+    total_payments = sum(item["count"] for item in payment_data)
+
+    payment_distribution = [
+        {
+            "payment_mode": item["payment_mode"],
+            "count": item["count"],
+            "percentage": round((item["count"] / total_payments) * 100, 2) if total_payments else 0.0
+        } for item in payment_data
+    ]
+
+    # -------- Top Defaulters (No Payment in Last 3 Months) --------
+    three_months_ago = datetime.now().date() - timedelta(days=90)
+    recent_payments = (
+        FeeRecord.objects.values("student_id")
+        .annotate(last_payment=Max("payment_date"))
+    )
+    recent_map = {i["student_id"]: i["last_payment"] for i in recent_payments}
+
+    defaulter_data = (
+        FeeRecord.objects.values(
+            "student_id",
+            "student__user__first_name",
+            "student__user__last_name"
+        )
+        .annotate(
+            total=Coalesce(Sum(F("total_amount") + F("late_fee"), output_field=FloatField()), Value(0.0)),
+            paid=Coalesce(Sum("paid_amount", output_field=FloatField()), Value(0.0)),
+        )
+    )
+
+    defaulters = []
+    for item in defaulter_data:
+        last_paid = recent_map.get(item["student_id"])
+        if item["total"] > item["paid"] and (not last_paid or last_paid < three_months_ago):
+            due = item["total"] - item["paid"]
+            due_percent = round((due / item["total"]) * 100, 2) if item["total"] else 0.0
+            defaulters.append({
+                "student_id": item["student_id"],
+                "student_name": f"{item['student__user__first_name']} {item['student__user__last_name']}",
+                "due_amount": round(due, 2),
+                "due_percent": due_percent,
+                "last_payment_date": last_paid
+            })
+
+    top_defaulters = sorted(defaulters, key=lambda x: -x["due_amount"])[:10]
+
+    # -------- Response --------
+    return Response({
+        "overall_summary": overall_summary,
+        "monthly_summary": monthly_summary,
+        "payment_mode_distribution": payment_distribution,
+        "top_defaulters": top_defaulters
+    })
+
+
 
 
 

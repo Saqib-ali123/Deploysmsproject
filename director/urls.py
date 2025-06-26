@@ -55,6 +55,11 @@ urlpatterns = [
     path('', include(router.urls)),
     # path('submit-fee/', FeeView.as_view(), name='submit-fee'),
     # path("fee_submission/<int:student_id>/", FeeSubmissionView.as_view(), name='fee-submission'),
+    
+    # As of 25June25 at 12:35
+    path('student-category-dashboard/', student_category, name='student-category'),
+    path('income-distribution-dashboard/', guardian_income_distribution, name='guardian-income-distribution'), 
+    path("fee-dashboard/", fee_dashboard, name="fee-dashboard-summary"),    # complete dashboard
 ]
 
 
