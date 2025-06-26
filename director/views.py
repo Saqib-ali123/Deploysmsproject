@@ -1211,7 +1211,7 @@ class DirectorView(viewsets.ModelViewSet):
     serializer_class = DirectorProfileSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ['list', 'retrieve','update', 'partial_update']:
             return [AllowAny()]  # Public access
         return [IsAuthenticated()]  # JWT required for others
 

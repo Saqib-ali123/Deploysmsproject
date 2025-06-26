@@ -36,7 +36,7 @@ class TeacherView(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['assign_teacher_details', 'get_all_teacher_assignments']:
             return [IsAuthenticated(), IsDirector()]
-        elif self.action in ['list', 'create', 'retrieve']:
+        elif self.action in ['list', 'create', 'retrieve','update', 'partial_update']:
             return [AllowAny()]
         return [IsAuthenticated()]
 
