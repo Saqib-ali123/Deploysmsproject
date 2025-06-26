@@ -58,12 +58,8 @@ urlpatterns = [
     
     # As of 25June25 at 12:35
     path('student-category-dashboard/', student_category, name='student-category'),
-    path('income-distribution-dashboard/', guardian_income_distribution, name='guardian-income-distribution'),
-    path("overall-fee-summary-dashboard/", overall_fee_summary, name="overall-fee-summary"),
-    path("payment-mode-dashboard/", payment_mode_distribution, name="payment_mode_distribution"),
-    path("monthly-fee-collection-dashboard/", monthly_fee_collection, name="monthly-fee-collection"),
-    path("defaulters-dashboard/", defaulters, name="defaulters"),
-     
+    path('income-distribution-dashboard/', guardian_income_distribution, name='guardian-income-distribution'), 
+    path("fee-dashboard/", fee_dashboard, name="fee-dashboard-summary"),    # complete dashboard
 ]
 
 
