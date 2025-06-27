@@ -568,41 +568,41 @@ def fee_dashboard(request):
 
     # -------- Top Defaulters (No Payment in Last 3 Months) --------
 
-    # Inside your fee_dashboard view:
+    # Defaulter Summary (based on dues in the last 3 months)
     three_months_ago = datetime.now().date() - timedelta(days=90)
 
-    # Subquery to fetch last payment per student
-    last_payment_subquery = FeeRecord.objects.filter(
-        student=OuterRef('pk')
-    ).order_by('-payment_date').values('payment_date')[:1]
+    due_per_month = FeeRecord.objects.filter(
+        payment_date__lt=three_months_ago
+    ).values("student_id").annotate(
+        total=Coalesce(Sum(F("total_amount") + F("late_fee"), output_field=FloatField()), Value(0.0)),
+        paid=Coalesce(Sum("paid_amount", output_field=FloatField()), Value(0.0)),
+    ).annotate(
+        due=F("total") - F("paid")
+    ).filter(due__gt=0)
 
-    # Annotate students with payment details
-    students = Student.objects.annotate(
-        total=Coalesce(
-            Sum(F('feerecord__total_amount') + F('feerecord__late_fee'), output_field=FloatField()),
-            Value(0.0)
-        ),
-        paid=Coalesce(
-            Sum('feerecord__paid_amount', output_field=FloatField()),
-            Value(0.0)
-        ),
-        last_payment=Subquery(last_payment_subquery, output_field=DateField())
-    )
-
-    # Filter defaulters:
-    # - They have a due (total > paid)
-    # - Their last payment is either null or older than 3 months
-    defaulters_qs = students.filter(
-        total__gt=F('paid')
-    ).filter(
-        Q(last_payment__lt=three_months_ago) | Q(last_payment__isnull=True)
-    )
-
-    # Count & Percent
-    defaulter_count = defaulters_qs.count()
-    total_students = students.count()
+    defaulter_count = due_per_month.count()
+    total_students = Student.objects.count()
     defaulter_percent = round((defaulter_count / total_students) * 100, 2) if total_students > 0 else 0.0
+    
+    
+    # --------- Fee Defaulters (Based on Due Older Than 3 Months) ---------
+    # three_months_ago = now().date() - timedelta(days=90)
 
+    # # Get only FeeRecords from the last 3 months
+    # recent_dues_qs = FeeRecord.objects.filter(payment_date__gte=three_months_ago)
+
+    # # Annotate due per record
+    # recent_dues_qs = recent_dues_qs.annotate(
+    #     total_due=F('total_amount') + F('late_fee') - F('paid_amount')
+    # ).filter(total_due__gt=0)
+
+    # # Total number of fee records with due in last 3 months
+    # defaulter_count = recent_dues_qs.values('student').distinct().count()
+
+    # # Total number of students overall
+    # total_students = Student.objects.count()
+
+    # defaulter_percent = round((defaulter_count / total_students) * 100, 2) if total_students > 0 else 0.0
 
     # -------- Response --------
     return Response({
@@ -1376,16 +1376,26 @@ class FeeTypeView(viewsets.ModelViewSet):
 class YearLevelFeeView(viewsets.ModelViewSet):
     serializer_class = YearLevelFeeSerializer
 
-    def get_queryset(self):
+    def get_queryset(self):           # just commneted as of 27june25 at 02:47 PM
         return YearLevelFee.objects.select_related('year_level', 'fee_type')
+    
+    # def get_queryset(self):         # GET /api/year-level-fee/?id=3
+    #     queryset = YearLevelFee.objects.select_related('year_level', 'fee_type')
+    #     fee_id = self.request.query_params.get('id', None)
 
-    def list(self, request, *args, **kwargs):
+    #     if fee_id is not None:
+    #         queryset = queryset.filter(id=fee_id)
+
+    #     return queryset
+    
+
+    def list(self, request, *args, **kwargs):       # GET /api/year-level-fee/
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         grouped_fees = YearLevelFeeSerializer.group_by_year_level(serializer.data)
         return Response(grouped_fees)
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request, pk=None):       # GET /api/year-level-fees/2/
         queryset = self.get_queryset().filter(year_level__id=pk)
         if not queryset.exists():
             return Response({"detail": "Not found."}, status=404)
