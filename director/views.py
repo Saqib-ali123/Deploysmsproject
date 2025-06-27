@@ -213,6 +213,37 @@ def guardian_dashboard(request, id=None):
         "children": children_data
     })
 
+@api_view(["GET"])
+def student_dashboard(request, id=None):
+    if not id:
+        return Response({"error": "Student ID is required"}, status=400)
+
+    try:
+        student = Student.objects.get(user__id=id)
+    except Student.DoesNotExist:
+        return Response({"error": "Student not found"}, status=404)
+
+    year_level_info = StudentYearLevel.objects.filter(student=student).last()
+
+    guardian_links = StudentGuardian.objects.filter(student=student)
+    guardians_data = []
+
+    for link in guardian_links:
+        guardian = link.guardian
+        guardians_data.append({
+            "guardian_name": f"{guardian.user.first_name} {guardian.user.last_name}"
+        })
+
+    return Response({
+        "guardian": guardians_data, 
+        "total_children": 1,
+        "children": [{
+            "student_name": f"{student.user.first_name} {student.user.last_name}",
+            "class": f"{year_level_info.level.level_name} ({year_level_info.year.year_name})"
+            if year_level_info else "Not Assigned"
+        }]
+    })
+
 # --------------------------------------------------------- office Staff Dashboard View  ----------------------------------------------------------
 
 
