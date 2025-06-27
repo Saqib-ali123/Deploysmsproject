@@ -1,3 +1,4 @@
+from django.forms import DateField
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db.models import Count
@@ -29,6 +30,12 @@ import json  # 🔸 This goes at the top of the file
 from django.db.models import Q
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
+from django.utils.timezone import now
+from django.db.models.functions import Cast
+
+
+
+from django.db.models import OuterRef, Subquery, Sum, Value, FloatField
 
 
 client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
@@ -39,6 +46,8 @@ from django.db.models import Sum, F, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.db.models import Q
 from django.db.models import Q, Sum, Value, FloatField
+from django.db.models.fields import DateField  # This avoids shadowing
+
 
 
 
@@ -589,48 +598,54 @@ def fee_dashboard(request):
     ]
 
     # -------- Top Defaulters (No Payment in Last 3 Months) --------
+
+    # Inside your fee_dashboard view:
     three_months_ago = datetime.now().date() - timedelta(days=90)
-    recent_payments = (
-        FeeRecord.objects.values("student_id")
-        .annotate(last_payment=Max("payment_date"))
+
+    # Subquery to fetch last payment per student
+    last_payment_subquery = FeeRecord.objects.filter(
+        student=OuterRef('pk')
+    ).order_by('-payment_date').values('payment_date')[:1]
+
+    # Annotate students with payment details
+    students = Student.objects.annotate(
+        total=Coalesce(
+            Sum(F('feerecord__total_amount') + F('feerecord__late_fee'), output_field=FloatField()),
+            Value(0.0)
+        ),
+        paid=Coalesce(
+            Sum('feerecord__paid_amount', output_field=FloatField()),
+            Value(0.0)
+        ),
+        last_payment=Subquery(last_payment_subquery, output_field=DateField())
     )
-    recent_map = {i["student_id"]: i["last_payment"] for i in recent_payments}
 
-    defaulter_data = (
-        FeeRecord.objects.values(
-            "student_id",
-            "student__user__first_name",
-            "student__user__last_name"
-        )
-        .annotate(
-            total=Coalesce(Sum(F("total_amount") + F("late_fee"), output_field=FloatField()), Value(0.0)),
-            paid=Coalesce(Sum("paid_amount", output_field=FloatField()), Value(0.0)),
-        )
+    # Filter defaulters:
+    # - They have a due (total > paid)
+    # - Their last payment is either null or older than 3 months
+    defaulters_qs = students.filter(
+        total__gt=F('paid')
+    ).filter(
+        Q(last_payment__lt=three_months_ago) | Q(last_payment__isnull=True)
     )
 
-    defaulters = []
-    for item in defaulter_data:
-        last_paid = recent_map.get(item["student_id"])
-        if item["total"] > item["paid"] and (not last_paid or last_paid < three_months_ago):
-            due = item["total"] - item["paid"]
-            due_percent = round((due / item["total"]) * 100, 2) if item["total"] else 0.0
-            defaulters.append({
-                "student_id": item["student_id"],
-                "student_name": f"{item['student__user__first_name']} {item['student__user__last_name']}",
-                "due_amount": round(due, 2),
-                "due_percent": due_percent,
-                "last_payment_date": last_paid
-            })
+    # Count & Percent
+    defaulter_count = defaulters_qs.count()
+    total_students = students.count()
+    defaulter_percent = round((defaulter_count / total_students) * 100, 2) if total_students > 0 else 0.0
 
-    top_defaulters = sorted(defaulters, key=lambda x: -x["due_amount"])[:10]
 
     # -------- Response --------
     return Response({
-        "overall_summary": overall_summary,
-        "monthly_summary": monthly_summary,
-        "payment_mode_distribution": payment_distribution,
-        "top_defaulters": top_defaulters
-    })
+    "overall_summary": overall_summary,
+    "monthly_summary": monthly_summary,
+    "payment_mode_distribution": payment_distribution,
+    "defaulter_summary": {
+        "count": defaulter_count,
+        "percent": defaulter_percent,
+    }
+})
+
 
 
 
@@ -1682,3 +1697,54 @@ class FeeRecordView(viewsets.ModelViewSet):
             })
 
         return Response(formatted_summary, status=status.HTTP_200_OK)
+    
+    
+    # retrieving students who dont have fee record at all
+    
+
+    @action(detail=False, methods=['get'], url_path="defaulters")
+    def defaulters(self, request):
+        # Last payment date for each student
+        last_payment_subquery = FeeRecord.objects.filter(
+            student=OuterRef('pk')
+        ).order_by('-payment_date').values('payment_date')[:1]
+
+        students = Student.objects.annotate(
+            last_payment=Subquery(last_payment_subquery, output_field=DateField()),
+            total=Coalesce(
+                Sum(
+                    ExpressionWrapper(
+                        Cast(F('feerecord__total_amount'), output_field=DecimalField(max_digits=10, decimal_places=2)) +
+                        Cast(F('feerecord__late_fee'), output_field=DecimalField(max_digits=10, decimal_places=2)),
+                        output_field=DecimalField(max_digits=10, decimal_places=2)
+                    )
+                ),
+                Value(0),
+                output_field=DecimalField(max_digits=10, decimal_places=2)
+            ),
+            paid=Coalesce(
+                Sum('feerecord__paid_amount'),
+                Value(0),
+                output_field=DecimalField(max_digits=10, decimal_places=2)
+            )
+        )
+
+        defaulters_list = []
+        for s in students:
+            # CASE 1: No records (total = 0, paid = 0)
+            # CASE 2: Has dues (paid < total)
+            has_dues = s.total > s.paid
+            no_records = s.total == 0 and s.paid == 0 and s.last_payment is None
+
+            if no_records or has_dues:
+                due = max(s.total - s.paid, 0)
+                defaulters_list.append({
+                    'id': s.id,
+                    'name': getattr(s, 'name', f"{s.user.first_name} {s.user.last_name}"),
+                    'total': float(s.total),
+                    'paid': float(s.paid),
+                    'due': float(due),
+                    'last_payment': s.last_payment.isoformat() if s.last_payment else None
+                })
+
+        return Response(defaulters_list)
