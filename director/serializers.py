@@ -895,7 +895,7 @@ class FeeRecordRazorpaySerializer(serializers.ModelSerializer):
         # Calculate total fees
         total = sum(fee.amount for fee in year_level_fees)
 
-        # Calculate late fee based on current/past month logic (same as cash serializer)
+        # Calculate late fee based on current or past month logic (same as cash serializer)
         month_map = {
             'January': 1, 'February': 2, 'March': 3, 'April': 4,
             'May': 5, 'June': 6, 'July': 7, 'August': 8,
