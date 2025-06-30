@@ -319,6 +319,7 @@ class DirectorProfileSerializer(serializers.ModelSerializer):
 
 # ***************chnag varilable name *****************************
 class AdmissionSerializer(serializers.ModelSerializer):
+    # enrollment_no = serializers.ReadOnlyField()
     # Use SerializerMethodField to output nested student and guardian data
     student_input = serializers.SerializerMethodField(read_only=True)
     guardian_input = serializers.SerializerMethodField(read_only=True)
@@ -367,7 +368,7 @@ class AdmissionSerializer(serializers.ModelSerializer):
             'year_level', 'school_year',
             'admission_date', 'previous_school_name', 'previous_standard_studied',
             'tc_letter', 'emergency_contact_no', 'entire_road_distance_from_home_to_school',
-            'obtain_marks', 'total_marks', 'previous_percentage',
+            'obtain_marks', 'total_marks', 'previous_percentage','enrollment_no'
         ]
         read_only_fields = [
             'admission_date',
@@ -375,7 +376,8 @@ class AdmissionSerializer(serializers.ModelSerializer):
             'guardian_input',
             'guardian_type',
             'address',
-            'banking_detail'
+            'banking_detail',
+            'enrollment_no'
         ]
 
     def get_student_input(self, obj):
@@ -490,6 +492,7 @@ class AdmissionSerializer(serializers.ModelSerializer):
             obtain_marks=validated_data.get('obtain_marks'),
             total_marks=validated_data.get('total_marks'),
             previous_percentage=validated_data.get('previous_percentage'),
+            enrollment_no=validated_data.get('enrollment_no'),
         )
 
         if guardian_type:
