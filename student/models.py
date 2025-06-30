@@ -30,6 +30,7 @@ class Student(models.Model):
     weight = models.FloatField(null=True, blank=True)
     blood_group = models.CharField(max_length=5,null=True, blank=True)
     number_of_siblings = models.IntegerField(null=True, blank=True)
+    roll_number = models.CharField(max_length=50, null=True, blank=True) 
 
     # Many-to-many relationship with classPeriod
     classes = models.ManyToManyField(

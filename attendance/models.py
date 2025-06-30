@@ -1,5 +1,6 @@
 from django.db import models
 from director.models import *
+from student.models import Student
 from teacher.models import *
 
 

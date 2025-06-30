@@ -2,10 +2,12 @@ import random
 import string
 import uuid
 from django.db import models
-from authentication.models import User
-from student.models import Student, Guardian,StudentYearLevel
+# from authentication.models import User
+# from student.models import Student, Guardian,StudentYearLevel
 from .utils import Document_folder 
 from teacher.models import Teacher 
+from django.utils.timezone import now
+
 
 
 
@@ -62,18 +64,18 @@ class City(models.Model):
 
 class Address(models.Model):
     user = models.ForeignKey("authentication.User", on_delete=models.DO_NOTHING)
-    house_no = models.IntegerField()
-    habitation = models.CharField(max_length=100)
-    word_no = models.IntegerField()
-    zone_no = models.IntegerField()
-    block = models.CharField(max_length=100)
-    district = models.CharField(max_length=100)
-    division = models.CharField(max_length=100)
-    area_code = models.IntegerField()
+    house_no = models.IntegerField(null=True, blank=True)
+    habitation = models.CharField(max_length=100,null=True, blank=True)
+    ward_no = models.IntegerField(null=True, blank=True)
+    zone_no = models.IntegerField(null=True, blank=True)
+    block = models.CharField(max_length=100,null=True, blank=True)
+    district = models.CharField(max_length=100,null=True, blank=True)
+    division = models.CharField(max_length=100,null=True, blank=True)
+    area_code = models.IntegerField(null=True, blank=True)
     country = models.ForeignKey(Country, on_delete=models.DO_NOTHING)
     state = models.ForeignKey(State, on_delete=models.DO_NOTHING)
     city = models.ForeignKey(City, on_delete=models.DO_NOTHING)
-    address_line = models.CharField(max_length=250)
+    address_line = models.CharField(max_length=250,null=True, blank=True)
 
     def __str__(self):
         return f"{self.user} - {self.address_line}"
@@ -229,6 +231,8 @@ class ClassPeriod(models.Model):
     )
     classroom = models.ForeignKey(ClassRoom, on_delete=models.DO_NOTHING)
     name = models.CharField(max_length=250)
+   
+
 
     def __str__(self):
         return self.name
@@ -245,26 +249,55 @@ class ClassPeriod(models.Model):
 
 
 class Admission(models.Model):
+    enrollment_no = models.CharField( max_length=20,blank=True, null=True)
     student = models.ForeignKey(Student, on_delete=models.DO_NOTHING)
     admission_date = models.DateField(auto_now_add=True)
     previous_school_name = models.CharField(max_length=200)
     previous_standard_studied = models.CharField(max_length=200)
     tc_letter = models.CharField(max_length=200)
     guardian = models.ForeignKey(Guardian, on_delete=models.DO_NOTHING)
-    year_level = models.ForeignKey('YearLevel', on_delete=models.DO_NOTHING)
+    year_level = models.ForeignKey('YearLevel', on_delete=models.SET_NULL, null=True, blank=True)
+    # year_level = models.ForeignKey('YearLevel', on_delete=models.DO_NOTHING)
+
     school_year = models.ForeignKey(SchoolYear, on_delete=models.DO_NOTHING)
-    emergency_contact_n0 = models.CharField(max_length=100)
+    emergency_contact_no = models.CharField(max_length=100)
     entire_road_distance_from_home_to_school = models.CharField(max_length=100)
     obtain_marks = models.FloatField()
     total_marks = models.FloatField()
     previous_percentage = models.FloatField(blank=True, null=True)  # Allow null/blank since auto-calculated
 
+    # def save(self, *args, **kwargs):
+    #     if self.total_marks > 0:
+    #         self.previous_percentage = (self.obtain_marks / self.total_marks) * 100
+    #     else:
+    #         self.previous_percentage = 0  
+    #     super().save(*args, **kwargs)
     def save(self, *args, **kwargs):
+        if not self.enrollment_no:
+            current_year = now().year
+            prefix = str(current_year)
+            
+            last_admission = Admission.objects.filter(enrollment_no__startswith=prefix).order_by('-enrollment_no').first()
+            
+            if last_admission and last_admission.enrollment_no:
+                last_seq_num = int(last_admission.enrollment_no.split('-')[-1])
+                new_seq_num = last_seq_num + 1
+            else:
+                new_seq_num = 1
+            
+            self.enrollment_no = f"{prefix}-{new_seq_num:04d}"
+
         if self.total_marks > 0:
             self.previous_percentage = (self.obtain_marks / self.total_marks) * 100
         else:
-            self.previous_percentage = 0  
+            self.previous_percentage = 0
+
         super().save(*args, **kwargs)
+
+        
+    def __str__(self):
+     return f"Admission of {self.student} (Guardian: {self.guardian}) - YearLevel: {self.year_level if self.year_level else 'None'}"
+    
 
 
 
@@ -336,7 +369,7 @@ class FeeRecord(models.Model):
     late_fee = models.DecimalField(max_digits=8, decimal_places=2)
     payment_status = models.CharField(max_length=20, choices=[('Paid', 'Paid'), ('Unpaid', 'Unpaid')])
     remarks = models.TextField(blank=True, null=True)
-    signature = models.CharField(max_length=100)
+    received_by = models.CharField(max_length=100, null=True,blank=True)      # modified 24June25
     razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
     razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
     razorpay_signature_id = models.CharField(max_length=255, blank=True, null=True)

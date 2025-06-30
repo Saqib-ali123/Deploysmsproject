@@ -1,3 +1,4 @@
+from django.forms import DateField
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db.models import Count
@@ -28,6 +29,14 @@ from rest_framework import viewsets, status
 import json  # 🔸 This goes at the top of the file
 from django.db.models import Q
 from collections import OrderedDict, defaultdict
+from datetime import datetime, timedelta
+from django.utils.timezone import now
+from django.db.models.functions import Cast
+
+
+
+from django.db.models import OuterRef, Subquery, Sum, Value, FloatField
+
 
 client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
@@ -37,11 +46,13 @@ from django.db.models import Sum, F, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.db.models import Q
 from django.db.models import Q, Sum, Value, FloatField
+from django.db.models.fields import DateField  # This avoids shadowing
 
 
 
 
-# client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
 ### Function to generate auto receipt no. called it inside initiate payment
 def generate_receipt_number():
@@ -213,6 +224,37 @@ def guardian_dashboard(request, id=None):
         "guardian": f"{guardian.user.first_name} {guardian.user.last_name}",
         "total_children": student_links.count(),
         "children": children_data
+    })
+
+@api_view(["GET"])
+def student_dashboard(request, id=None):
+    if not id:
+        return Response({"error": "Student ID is required"}, status=400)
+
+    try:
+        student = Student.objects.get(user__id=id)
+    except Student.DoesNotExist:
+        return Response({"error": "Student not found"}, status=404)
+
+    year_level_info = StudentYearLevel.objects.filter(student=student).last()
+
+    guardian_links = StudentGuardian.objects.filter(student=student)
+    guardians_data = []
+
+    for link in guardian_links:
+        guardian = link.guardian
+        guardians_data.append({
+            "guardian_name": f"{guardian.user.first_name} {guardian.user.last_name}"
+        })
+
+    return Response({
+        "guardian": guardians_data, 
+        "total_children": 1,
+        "children": [{
+            "student_name": f"{student.user.first_name} {student.user.last_name}",
+            "class": f"{year_level_info.level.level_name} ({year_level_info.year.year_name})"
+            if year_level_info else "Not Assigned"
+        }]
     })
 
 # --------------------------------------------------------- office Staff Dashboard View  ----------------------------------------------------------
@@ -450,7 +492,200 @@ def livelihood_distribution(request):
 
 
 
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+### ----------------------------- Category Count Dashboard API ----------------- ###
+### ------------------- As of 25June25 at 12:35 --------------- ###
+
+@api_view(["GET"])
+def student_category(request):
+    category_counts = Student.objects.values('category').annotate(total=Count('id'))
+    total_students = Student.objects.count()
+
+    # Map category codes to their display names
+    category_display_map = dict(Student._meta.get_field('category').choices)
+
+    result = [
+        {
+            # "category_code": item["category"],  # Uncomment if needed
+            "category_name": category_display_map.get(item["category"], "Unknown"),
+            "count": item["total"],
+            "percentage": round((item["total"] / total_students) * 100, 2) if total_students > 0 else 0.0
+        }
+        for item in category_counts
+    ]
+
+    return Response(result, status=status.HTTP_200_OK)
+
+### -------------------------------------------------------------- ###
+
+### ----------------------------- Income Distribution Dashboard API ----------------- ###
+### ------------------- As of 25June25 at 12:35 --------------- ###
+
+@api_view(["GET"])
+def guardian_income_distribution(request):
+    # Define updated income brackets
+    brackets = {
+        "Below 1 Lakh": (0, 100000),
+        "1 – 3 Lakhs": (100001, 300000),
+        "3 – 5 Lakhs": (300001, 500000),
+        "5 – 8 Lakhs": (500001, 800000),
+        "8 – 10 Lakhs": (800001, 1000000),
+        "Above 10 Lakhs": (1000001, None),
+    }
+
+    total_guardians = Guardian.objects.exclude(annual_income__isnull=True).count()
+
+    results = []
+
+    for label, (min_income, max_income) in brackets.items():
+        if max_income is not None:
+            count = Guardian.objects.filter(
+                annual_income__gte=min_income,
+                annual_income__lte=max_income
+            ).count()
+        else:
+            count = Guardian.objects.filter(
+                annual_income__gte=min_income
+            ).count()
+
+        percentage = round((count / total_guardians) * 100, 2) if total_guardians > 0 else 0.0
+
+        results.append({
+            "income_range": label,
+            "count": count,
+            "percentage": percentage
+        })
+
+    return Response(results, status=status.HTTP_200_OK)
+### -------------------------------------------------------------- ###
+
+
+### ------------------- As of 25June25 at 12:35 --------------- ###
+### ---- complete fee dashboard ------- ###
+@api_view(["GET"])
+def fee_dashboard(request):
+    filter_month = request.query_params.get("month")
+    qs = FeeRecord.objects.all()
+
+    # -------- Overall Summary --------
+    total = qs.aggregate(
+        total=Coalesce(Sum(F("total_amount") + F("late_fee"), output_field=FloatField()), Value(0.0))
+    )["total"]
+    paid = qs.aggregate(
+        paid=Coalesce(Sum("paid_amount", output_field=FloatField()), Value(0.0))
+    )["paid"]
+    late_fee = qs.aggregate(
+        late=Coalesce(Sum("late_fee", output_field=FloatField()), Value(0.0))
+    )["late"]
+
+    due = max(0, total - paid)
+    paid_percent = round((paid / total) * 100, 2) if total > 0 else 0.0
+    due_percent = round((due / total) * 100, 2) if total > 0 else 0.0
+    total_percent = round(paid_percent + due_percent, 2)
+
+    overall_summary = {
+        "total_amount": round(total, 2),
+        "paid_amount": round(paid, 2),
+        "due_amount": round(due, 2),
+        "late_fee": round(late_fee, 2),
+        "paid_percent": paid_percent,
+        "due_percent": due_percent,
+        "total_percent": total_percent
+    }
+
+    # -------- Monthly Summary --------
+    # https://187gwsw1-7000.inc1.devtunnels.ms/d/fee-dashboard/?month=June
+    monthly_qs = qs.filter(month__iexact=filter_month) if filter_month else qs
+    monthly_data = (
+        monthly_qs.values("month")
+        .annotate(
+            total_base=Coalesce(Sum("total_amount", output_field=FloatField()), Value(0.0)),
+            late_fee=Coalesce(Sum("late_fee", output_field=FloatField()), Value(0.0)),
+            paid=Coalesce(Sum("paid_amount", output_field=FloatField()), Value(0.0)),
+        )
+        .order_by("month")
+    )
+
+    monthly_summary = []
+    for item in monthly_data:
+        total = item["total_base"] + item["late_fee"]
+        due = max(0, total - item["paid"])
+        monthly_summary.append({
+            "month": item["month"],
+            "total_amount": round(total, 2),
+            "paid_amount": round(item["paid"], 2),
+            "due_amount": round(due, 2),
+            "late_fee": round(item["late_fee"], 2),
+            "paid_percent": round((item["paid"] / total) * 100, 2) if total > 0 else 0.0,
+            "due_percent": round((due / total) * 100, 2) if total > 0 else 0.0,
+            "late_fee_percent": round((item["late_fee"] / total) * 100, 2) if total > 0 else 0.0,
+            "total_percent": 100.0
+        })
+
+    # -------- Payment Mode Distribution --------
+    payment_data = FeeRecord.objects.values("payment_mode").annotate(count=Count("id"))
+    total_payments = sum(item["count"] for item in payment_data)
+
+    payment_distribution = [
+        {
+            "payment_mode": item["payment_mode"],
+            "count": item["count"],
+            "percentage": round((item["count"] / total_payments) * 100, 2) if total_payments else 0.0
+        } for item in payment_data
+    ]
+
+    # -------- Top Defaulters (No Payment in Last 3 Months) --------
+
+    # Defaulter Summary (based on dues in the last 3 months)
+    three_months_ago = datetime.now().date() - timedelta(days=90)
+
+    due_per_month = FeeRecord.objects.filter(
+        payment_date__lt=three_months_ago
+    ).values("student_id").annotate(
+        total=Coalesce(Sum(F("total_amount") + F("late_fee"), output_field=FloatField()), Value(0.0)),
+        paid=Coalesce(Sum("paid_amount", output_field=FloatField()), Value(0.0)),
+    ).annotate(
+        due=F("total") - F("paid")
+    ).filter(due__gt=0)
+
+    defaulter_count = due_per_month.count()
+    total_students = Student.objects.count()
+    defaulter_percent = round((defaulter_count / total_students) * 100, 2) if total_students > 0 else 0.0
+    
+    
+    # --------- Fee Defaulters (Based on Due Older Than 3 Months) ---------
+    # three_months_ago = now().date() - timedelta(days=90)
+
+    # # Get only FeeRecords from the last 3 months
+    # recent_dues_qs = FeeRecord.objects.filter(payment_date__gte=three_months_ago)
+
+    # # Annotate due per record
+    # recent_dues_qs = recent_dues_qs.annotate(
+    #     total_due=F('total_amount') + F('late_fee') - F('paid_amount')
+    # ).filter(total_due__gt=0)
+
+    # # Total number of fee records with due in last 3 months
+    # defaulter_count = recent_dues_qs.values('student').distinct().count()
+
+    # # Total number of students overall
+    # total_students = Student.objects.count()
+
+    # defaulter_percent = round((defaulter_count / total_students) * 100, 2) if total_students > 0 else 0.0
+
+    # -------- Response --------
+    return Response({
+    "overall_summary": overall_summary,
+    "monthly_summary": monthly_summary,
+    "payment_mode_distribution": payment_distribution,
+    "defaulter_summary": {
+        "count": defaulter_count,
+        "percent": defaulter_percent,
+    }
+})
+
+
+
 
 
 
@@ -1029,7 +1264,7 @@ class DirectorView(viewsets.ModelViewSet):
     serializer_class = DirectorProfileSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ['list', 'retrieve','update', 'partial_update']:
             return [AllowAny()]  # Public access
         return [IsAuthenticated()]  # JWT required for others
 
@@ -1210,16 +1445,26 @@ class FeeTypeView(viewsets.ModelViewSet):
 class YearLevelFeeView(viewsets.ModelViewSet):
     serializer_class = YearLevelFeeSerializer
 
-    def get_queryset(self):
+    def get_queryset(self):           # just commneted as of 27june25 at 02:47 PM
         return YearLevelFee.objects.select_related('year_level', 'fee_type')
+    
+    # def get_queryset(self):         # GET /api/year-level-fee/?id=3
+    #     queryset = YearLevelFee.objects.select_related('year_level', 'fee_type')
+    #     fee_id = self.request.query_params.get('id', None)
 
-    def list(self, request, *args, **kwargs):
+    #     if fee_id is not None:
+    #         queryset = queryset.filter(id=fee_id)
+
+    #     return queryset
+    
+
+    def list(self, request, *args, **kwargs):       # GET /api/year-level-fee/
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         grouped_fees = YearLevelFeeSerializer.group_by_year_level(serializer.data)
         return Response(grouped_fees)
 
-    def retrieve(self, request, pk=None):
+    def retrieve(self, request, pk=None):       # GET /api/year-level-fees/2/
         queryset = self.get_queryset().filter(year_level__id=pk)
         if not queryset.exists():
             return Response({"detail": "Not found."}, status=404)
@@ -1281,7 +1526,7 @@ class FeeRecordView(viewsets.ModelViewSet):
         paid_amount = request.data.get('paid_amount')
         payment_mode = request.data.get('payment_mode')
         remarks = request.data.get('remarks')
-        signature = request.data.get('signature')
+        received_by = request.data.get('received_by')
 
         if not months or not isinstance(months, list):
             return Response({"error": "Months must be a non-empty list."}, status=status.HTTP_400_BAD_REQUEST)
@@ -1295,7 +1540,7 @@ class FeeRecordView(viewsets.ModelViewSet):
                 "paid_amount": paid_amount,
                 "payment_mode": payment_mode,
                 "remarks": f"{remarks or ''} ({month})",
-                "signature": signature
+                "received_by": received_by
             })
             if serializer.is_valid():
                 serializer.save()
@@ -1357,7 +1602,7 @@ class FeeRecordView(viewsets.ModelViewSet):
             "year_level_fees",
             "paid_amount",
             "payment_mode",
-            "signature"
+            "received_by"
         ]
         missing = [field for field in required_fields if field not in data]
 
@@ -1500,3 +1745,54 @@ class FeeRecordView(viewsets.ModelViewSet):
             })
 
         return Response(formatted_summary, status=status.HTTP_200_OK)
+    
+    
+    # retrieving students who dont have fee record at all
+    
+
+    @action(detail=False, methods=['get'], url_path="defaulters")
+    def defaulters(self, request):
+        # Last payment date for each student
+        last_payment_subquery = FeeRecord.objects.filter(
+            student=OuterRef('pk')
+        ).order_by('-payment_date').values('payment_date')[:1]
+
+        students = Student.objects.annotate(
+            last_payment=Subquery(last_payment_subquery, output_field=DateField()),
+            total=Coalesce(
+                Sum(
+                    ExpressionWrapper(
+                        Cast(F('feerecord__total_amount'), output_field=DecimalField(max_digits=10, decimal_places=2)) +
+                        Cast(F('feerecord__late_fee'), output_field=DecimalField(max_digits=10, decimal_places=2)),
+                        output_field=DecimalField(max_digits=10, decimal_places=2)
+                    )
+                ),
+                Value(0),
+                output_field=DecimalField(max_digits=10, decimal_places=2)
+            ),
+            paid=Coalesce(
+                Sum('feerecord__paid_amount'),
+                Value(0),
+                output_field=DecimalField(max_digits=10, decimal_places=2)
+            )
+        )
+
+        defaulters_list = []
+        for s in students:
+            # CASE 1: No records (total = 0, paid = 0)
+            # CASE 2: Has dues (paid < total)
+            has_dues = s.total > s.paid
+            no_records = s.total == 0 and s.paid == 0 and s.last_payment is None
+
+            if no_records or has_dues:
+                due = max(s.total - s.paid, 0)
+                defaulters_list.append({
+                    'id': s.id,
+                    'name': getattr(s, 'name', f"{s.user.first_name} {s.user.last_name}"),
+                    'total': float(s.total),
+                    'paid': float(s.paid),
+                    'due': float(due),
+                    'last_payment': s.last_payment.isoformat() if s.last_payment else None
+                })
+
+        return Response(defaulters_list)

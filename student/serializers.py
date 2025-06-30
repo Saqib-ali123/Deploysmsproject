@@ -49,6 +49,7 @@ class StudentSerializer(serializers.ModelSerializer):
     weight = serializers.FloatField(required=False, allow_null=True)
     blood_group = serializers.CharField(required=False, allow_null=True)
     number_of_siblings = serializers.IntegerField(required=False, allow_null=True)
+    roll_number = serializers.CharField(required=False, allow_null=True) 
 
     # Classes many-to-many
     classes = serializers.PrimaryKeyRelatedField(queryset=ClassPeriod.objects.all(), many=True,required=False,allow_empty=True,default=[])
@@ -58,7 +59,7 @@ class StudentSerializer(serializers.ModelSerializer):
         fields = ['id',
             'first_name', 'middle_name', 'last_name', 'email', 'password', 'user_profile',
             'father_name', 'mother_name', 'date_of_birth', 'gender', 'religion', 'category',
-            'height', 'weight', 'blood_group', 'number_of_siblings', 'classes'
+            'height', 'weight', 'blood_group', 'number_of_siblings', 'roll_number','classes'
         ]
 
     def to_representation(self, instance):
@@ -99,7 +100,7 @@ class StudentSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("User with this email already exists.")
 
         user = User.objects.create_user(
-            username=user_data['email'],  # or other unique username logic
+
             email=user_data['email'],
             first_name=user_data['first_name'],
             last_name=user_data['last_name'],
@@ -241,8 +242,6 @@ class GuardianSerializer(serializers.ModelSerializer):
         return instance
 
 
-
-
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         user = instance.user
@@ -272,10 +271,12 @@ class StudentYearLevelSerializer(serializers.ModelSerializer):
     student_name = serializers.SerializerMethodField(read_only=True)
     level_name = serializers.CharField(source='level.level_name', read_only=True)
     year_name = serializers.CharField(source='year.year_name', read_only=True)
+    student_id = serializers.IntegerField(source='student.id', read_only=True)  # added as of 24June25 at 04:13 PM
+    student_email = serializers.SerializerMethodField(read_only=True)  # Added email as of 26June25 at 02:07 PM
 
     class Meta:
         model = StudentYearLevel
-        fields = ['id', 'student', 'level', 'year', 'student_name', 'level_name', 'year_name']
+        fields = ['id', 'student', 'level', 'year','student_id', 'student_name','student_email', 'level_name', 'year_name']
         extra_kwargs = {
             'student': {'write_only': True},
             'level': {'write_only': True},
@@ -286,6 +287,9 @@ class StudentYearLevelSerializer(serializers.ModelSerializer):
         first_name = obj.student.user.first_name or ''
         last_name = obj.student.user.last_name or ''
         return f"{first_name} {last_name}".strip()
+    
+    def get_student_email(self, obj):           #  Added email as of 26June25 at 02:07 PM
+        return obj.student.user.email if obj.student and obj.student.user else ''
 
 
 
