@@ -78,11 +78,15 @@ def Director_Dashboard_Summary(request):
         .first()
     )
 
+    # if current_school_year:
+    #     new_admissions_count = Admission.objects.filter(
+    #         admission_date__gte=current_school_year.start_date,
+    #         admission_date__lte=current_school_year.end_date
+    #     ).count()
+    # else:
+    #     new_admissions_count = 0
     if current_school_year:
-        new_admissions_count = Admission.objects.filter(
-            admission_date__gte=current_school_year.start_date,
-            admission_date__lte=current_school_year.end_date
-        ).count()
+        new_admissions_count = Admission.objects.filter(school_year=current_school_year).count()
     else:
         new_admissions_count = 0
 
@@ -284,10 +288,13 @@ def office_staff_dashboard(request):
         year_range = f"{year.start_date.year}-{year.end_date.year}"
 
         # Admissions in that academic year
-        admissions_count = Admission.objects.filter(
-            admission_date__gte=year.start_date,
-            admission_date__lte=year.end_date
-        ).count()
+        # admissions_count = Admission.objects.filter(
+        #     admission_date__gte=year.start_date,
+        #     admission_date__lte=year.end_date
+        # ).count()
+        # New logic (based on ForeignKey)
+        admissions_count = Admission.objects.filter(school_year=year).count()
+
         admissions_trend[year_range] = admissions_count
 
         # Students enrolled in that academic year
