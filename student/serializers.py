@@ -50,6 +50,9 @@ class StudentSerializer(serializers.ModelSerializer):
     blood_group = serializers.CharField(required=False, allow_null=True)
     number_of_siblings = serializers.IntegerField(required=False, allow_null=True)
     roll_number = serializers.CharField(required=False, allow_null=True) 
+    contact_number = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    scholar_number = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
 
     # Classes many-to-many
     classes = serializers.PrimaryKeyRelatedField(queryset=ClassPeriod.objects.all(), many=True,required=False,allow_empty=True,default=[])
@@ -59,7 +62,7 @@ class StudentSerializer(serializers.ModelSerializer):
         fields = ['id',
             'first_name', 'middle_name', 'last_name', 'email', 'password', 'user_profile',
             'father_name', 'mother_name', 'date_of_birth', 'gender', 'religion', 'category',
-            'height', 'weight', 'blood_group', 'number_of_siblings', 'roll_number','classes'
+            'height', 'weight', 'blood_group', 'number_of_siblings', 'roll_number','contact_number','scholar_number','classes'
         ]
 
     def to_representation(self, instance):
