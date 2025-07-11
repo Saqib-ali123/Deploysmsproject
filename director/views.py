@@ -32,7 +32,7 @@ from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from django.utils.timezone import now
 from django.db.models.functions import Cast
-
+from teacher.models import Teacher, TeacherYearLevel
 
 
 from django.db.models import OuterRef, Subquery, Sum, Value, FloatField
@@ -157,56 +157,48 @@ def Director_Dashboard_Summary(request):
 # ---------------------------------------------------------   Teacher Dashboard View  ----------------------------------------------------------
  
 
+
 @api_view(["GET"])
 def teacher_dashboard(request, id):
     try:
-        user = User.objects.get(id=id)
-        teacher = user.teacher
-    except User.DoesNotExist:
-        return Response({"error": "User not found"}, status=404)
+        teacher = Teacher.objects.get(user_id=id)
+        teacher_name = f"{teacher.user.first_name} {teacher.user.last_name}"
+
+       
+        assigned_levels = TeacherYearLevel.objects.filter(teacher=teacher).select_related("year_level")
+
+        class_summary = []
+
+        for assigned in assigned_levels:
+            level = assigned.year_level
+            level_name = level.level_name
+
+            total_students = StudentYearLevel.objects.filter(level=level).count()
+
+            class_period = ClassPeriod.objects.filter(
+                teacher=teacher,
+                classroom__isnull=False
+            ).select_related("classroom").first()
+
+            room_name = class_period.classroom.room_name if class_period and class_period.classroom else None
+
+            class_summary.append({
+                "level_name": level_name,
+                "total_students": total_students,
+                "room_name": room_name
+            })
+
+        return Response({
+            "teacher_name": teacher_name,
+            "total_assigned_classes": len(class_summary),
+            "class_summary": class_summary
+        })
+
     except Teacher.DoesNotExist:
-        return Response({"error": "This user is not a teacher"}, status=400)
-
-    periods = ClassPeriod.objects.filter(teacher=teacher)
-    class_data = []
-    seen = set()
-
-    for period in periods:
-        students = Student.objects.filter(classes=period).distinct()
-
-        # ✅ FIXED: Use correct reverse relation from YearLevel
-        year_levels = YearLevel.objects.filter(
-            studentyearlevel__student__in=students
-        ).distinct()
-
-        for level in year_levels:
-            key = (level.id, period.id)
-            if key not in seen:
-                seen.add(key)
-
-                student_count = Student.objects.filter(
-                    student_year_levels__level=level,
-                    classes=period
-                ).distinct().count()
-
-                class_data.append({
-                    "level_name": level.level_name,
-                    "student_count": student_count,
-                    "class_period": period.name,
-                    "subject": period.subject.subject_name,
-                    "classroom": period.classroom.room_name,
-                })
-
-    return Response({
-        "teacher": f"{teacher.user.first_name} {teacher.user.last_name}",
-        "total_classes": periods.count(),
-        "class_details": class_data
-    })
+        return Response({"error": "Teacher not found"}, status=404)
 
 
-#   -------------------------------------------  Guardian Dashboard  ----------------------------------------------------------
-
-
+# --------------------------------------------------------- Guardian Dashboard View  ----------------------------------------------------------
 @api_view(["GET"])
 def guardian_dashboard(request, id=None):
     if not id:
