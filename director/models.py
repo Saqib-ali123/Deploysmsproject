@@ -221,6 +221,7 @@ class ClassRoom(models.Model):
 
 class ClassPeriod(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.DO_NOTHING)
+    year_level = models.ForeignKey("YearLevel", on_delete=models.DO_NOTHING)
     teacher = models.ForeignKey("teacher.Teacher", on_delete=models.DO_NOTHING)
     term = models.ForeignKey(Term, on_delete=models.DO_NOTHING)
     start_time = models.ForeignKey(

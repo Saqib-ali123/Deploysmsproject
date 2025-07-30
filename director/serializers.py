@@ -1085,71 +1085,163 @@ class FileSerializer(serializers.ModelSerializer):
 
 
 
+# class DocumentSerializer(serializers.ModelSerializer):
+#     files = FileSerializer(many=True, read_only=True)
+
+#     uploaded_files = serializers.ListField(
+#         child=serializers.FileField(),
+#         write_only=True,
+#         required=True,
+#         allow_empty=False
+#     )
+
+#     # Accepts list of IDs at POST/PUT time
+#     document_types = serializers.PrimaryKeyRelatedField(
+#         queryset=DocumentType.objects.all(),
+#         many=True,
+#         required=True,
+#         allow_empty=False
+#     )
+
+#     identities = serializers.ListField(
+#         child=serializers.CharField(),
+#         write_only=True
+#     )
+
+#     identities_read = serializers.SerializerMethodField(read_only=True)
+
+#     class Meta:
+#         model = Document
+#         fields = [
+#             'id', 'document_types', 'identities', 'identities_read', 'files', 'uploaded_files',
+#             'student', 'teacher', 'guardian', 'office_staff', 'uploaded_at'
+#         ]
+
+#     def get_identities_read(self, obj):
+#         import json
+#         try:
+#             return json.loads(obj.identities) if obj.identities else []
+#         except:
+#             return []
+
+#     def to_representation(self, instance):
+#         """Customize the output to show document type names instead of just IDs."""
+#         representation = super().to_representation(instance)
+#         document_types = instance.document_types.all()
+#         representation['document_types'] = [
+#             {"id": dt.id, "name": dt.name} for dt in document_types
+#         ]
+#         return representation
+
+#     def create(self, validated_data):
+#         import json
+
+#         uploaded_files = validated_data.pop('uploaded_files')
+#         document_types = validated_data.pop('document_types')
+#         identities_list = validated_data.pop('identities')
+
+#         if len(document_types) != len(identities_list):
+#             raise serializers.ValidationError("Number of document_types and identities must match.")
+
+#         document = Document.objects.create(**validated_data)
+#         document.document_types.set(document_types)
+#         document.identities = json.dumps(identities_list)
+#         document.save()
+
+#         for uploaded_file in uploaded_files:
+#             File.objects.create(file=uploaded_file, document=document)
+
+#         return document
+
+
+
+# from rest_framework import serializers
+# from .models import Document, DocumentType
+
+# class DocumentSerializer(serializers.ModelSerializer):
+#     # Make document_types write-only to prevent it from being included in validated_data
+#     document_types = serializers.PrimaryKeyRelatedField(
+#         many=True,
+#         queryset=DocumentType.objects.all(),
+#         write_only=True
+#     )
+    
+#     # Add read-only field for the response
+#     document_types_read = serializers.PrimaryKeyRelatedField(
+#         many=True,
+#         source='document_types',
+#         read_only=True
+#     )
+    
+#     class Meta:
+#         model = Document
+#         fields = '__all__'
+#         extra_kwargs = {
+#             'student': {'required': False, 'allow_null': True},
+#             'teacher': {'required': False, 'allow_null': True},
+#             'guardian': {'required': False, 'allow_null': True},
+#             'office_staff': {'required': False, 'allow_null': True},
+#         }
+
+#     def create(self, validated_data):
+#         # Remove document_types from validated_data before creation
+#         document_types = validated_data.pop('document_types', [])
+        
+#         # Create the document instance
+#         instance = super().create(validated_data)
+        
+#         # Set the many-to-many relationship after creation
+#         if document_types:
+#             instance.document_types.set(document_types)
+        
+#         return instance
+
+#     def update(self, instance, validated_data):
+#         # Handle document_types separately for updates too
+#         document_types = validated_data.pop('document_types', None)
+        
+#         instance = super().update(instance, validated_data)
+        
+#         if document_types is not None:
+#             instance.document_types.set(document_types)
+        
+#         return instance
+
+from rest_framework import serializers
+from .models import Document, DocumentType
+
+
 class DocumentSerializer(serializers.ModelSerializer):
-    files = FileSerializer(many=True, read_only=True)
-
-    uploaded_files = serializers.ListField(
-        child=serializers.FileField(),
-        write_only=True,
-        required=True,
-        allow_empty=False
-    )
-
-    # Accepts list of IDs at POST/PUT time
     document_types = serializers.PrimaryKeyRelatedField(
-        queryset=DocumentType.objects.all(),
         many=True,
-        required=True,
-        allow_empty=False
-    )
-
-    identities = serializers.ListField(
-        child=serializers.CharField(),
+        queryset=DocumentType.objects.all(),
         write_only=True
     )
-
-    identities_read = serializers.SerializerMethodField(read_only=True)
-
+    
+    document_types_read = serializers.PrimaryKeyRelatedField(
+        many=True,
+        source='document_types',
+        read_only=True
+    )
+    
+    files = FileSerializer(many=True, read_only=True)
+    
     class Meta:
         model = Document
-        fields = [
-            'id', 'document_types', 'identities', 'identities_read', 'files', 'uploaded_files',
-            'student', 'teacher', 'guardian', 'office_staff', 'uploaded_at'
-        ]
-
-    def get_identities_read(self, obj):
-        import json
-        try:
-            return json.loads(obj.identities) if obj.identities else []
-        except:
-            return []
-
-    def to_representation(self, instance):
-        """Customize the output to show document type names instead of just IDs."""
-        representation = super().to_representation(instance)
-        document_types = instance.document_types.all()
-        representation['document_types'] = [
-            {"id": dt.id, "name": dt.name} for dt in document_types
-        ]
-        return representation
+        fields = '__all__'
+        extra_kwargs = {
+            'student': {'required': False, 'allow_null': True},
+            'teacher': {'required': False, 'allow_null': True},
+            'guardian': {'required': False, 'allow_null': True},
+            'office_staff': {'required': False, 'allow_null': True},
+        }
 
     def create(self, validated_data):
-        import json
-
-        uploaded_files = validated_data.pop('uploaded_files')
-        document_types = validated_data.pop('document_types')
-        identities_list = validated_data.pop('identities')
-
-        if len(document_types) != len(identities_list):
-            raise serializers.ValidationError("Number of document_types and identities must match.")
-
-        document = Document.objects.create(**validated_data)
-        document.document_types.set(document_types)
-        document.identities = json.dumps(identities_list)
-        document.save()
-
-        for uploaded_file in uploaded_files:
-            File.objects.create(file=uploaded_file, document=document)
-
-        return document
-
+        document_types = validated_data.pop('document_types', [])
+        instance = super().create(validated_data)
+        
+        if document_types:
+            instance.document_types.set(document_types)
+        
+        # Handle file creation separately in the view
+        return instance
