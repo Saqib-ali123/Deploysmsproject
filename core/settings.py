@@ -104,6 +104,7 @@ WSGI_APPLICATION = "core.wsgi.application"
 #         "NAME": BASE_DIR / "db.sqlite3",
 #     }
 # }
+from decouple import config  # RIGHT!
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',  # Official Django MySQL backend
