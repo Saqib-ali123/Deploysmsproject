@@ -2,8 +2,9 @@
 nixPkgs = ["python310Full"]
 
 [phases.install]
-cmds = ["pip install -r requirements.txt"]
+cmds = ["python3 -m pip install -r requirements.txt"]
 
 [start]
-cmd = "python main.py"
+cmd = "python main.py"  # Or update for Django etc.
+
 
