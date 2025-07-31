@@ -1,14 +1,17 @@
 [phases.setup]
-nixPkgs = ["python310Full", "python310Packages.pip"]
+nixPkgs = [
+  "python310",
+  "python310Packages.pip",
+  "python310Packages.setuptools",
+  "python310Packages.wheel"
+]
 
 [phases.install]
 cmds = [
-  "python3 -m pip install --upgrade pip",
-  "python3 -m pip install -r requirements.txt"
+  "python -m ensurepip --upgrade",
+  "python -m pip install --upgrade pip",
+  "python -m pip install -r requirements.txt"
 ]
-
-[start]
-cmd = "python manage.py runserver 0.0.0.0:8000"
 
 
 
