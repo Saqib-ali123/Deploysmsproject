@@ -1,17 +1,23 @@
 [phases.setup]
 nixPkgs = [
-  "python310",
-  "python310Packages.pip",
-  "python310Packages.setuptools",
-  "python310Packages.wheel"
+  "python310",  # Python 3.10
+  "pip",        # Standalone pip
+  "zlib",       # Often required for Python packages
+  "libffi",     # Common dependency
+  "openssl"     # For SSL connections
 ]
 
 [phases.install]
 cmds = [
-  "python -m ensurepip --upgrade",
-  "python -m pip install --upgrade pip",
+  # First ensure pip is available
+  "python -m ensurepip || curl -sS https://bootstrap.pypa.io/get-pip.py | python",
+  # Then proceed with normal installation
+  "python -m pip install --upgrade pip setuptools wheel",
   "python -m pip install -r requirements.txt"
 ]
+
+[start]
+cmd = "python manage.py runserver 0.0.0.0:8000"
 
 
 
